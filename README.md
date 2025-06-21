@@ -53,10 +53,15 @@ The easiest way to install DevTools on macOS is using our install script:
 
 ```bash
 # System-wide installation (may require sudo)
-curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh | bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh)"
 
 # User-only installation (no sudo required)
-curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh | bash -s -- --user
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh)" -- --user
+
+# Alternative method (download and run)
+curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
 ```
 
 The install script will:

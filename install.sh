@@ -2,13 +2,12 @@
 
 # DevTools Installation Script for macOS
 # This script downloads and installs the devtools binary to /usr/local/bin
+#
+# Usage:
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh)"
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh)" -- --user
 
 set -e
-
-# Make this script executable if it isn't already
-if [[ ! -x "$0" ]]; then
-    chmod +x "$0"
-fi
 
 # Colors for output
 RED='\033[0;31m'
