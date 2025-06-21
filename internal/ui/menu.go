@@ -37,8 +37,8 @@ func (i item) FilterValue() string { return i.title }
 
 type itemDelegate struct{}
 
-func (d itemDelegate) Height() int                             { return 3 }
-func (d itemDelegate) Spacing() int                            { return 1 }
+func (d itemDelegate) Height() int                             { return 2 }
+func (d itemDelegate) Spacing() int                            { return 0 }
 func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
 	i, ok := listItem.(item)
@@ -80,6 +80,8 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
+		// Set height to use most of the terminal, leaving room for margins
+		m.list.SetHeight(msg.Height - 4)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -133,10 +135,11 @@ func ShowAnimatedMenu(modules []types.ModuleInfo) (string, error) {
 
 	// Create the list
 	const defaultWidth = 80
-	const listHeight = 20
+	// Set a larger default height to show more items
+	const listHeight = 30
 
 	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
-	l.Title = GetGradientTitle("🚀 DevTools Manager")
+	l.Title = GetGradientTitle("🚀 DevTools Manager by Karthick")
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = titleStyle

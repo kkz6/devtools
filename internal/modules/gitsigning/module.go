@@ -73,7 +73,7 @@ func (m *Module) Execute(cfg *config.Config) error {
 	case 6:
 		return m.cleanupSigning(cfg)
 	case 7:
-		return nil
+		return types.ErrNavigateBack
 	default:
 		ui.ShowError("Invalid choice")
 		return m.Execute(cfg)

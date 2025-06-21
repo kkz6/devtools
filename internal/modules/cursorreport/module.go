@@ -40,9 +40,9 @@ func (m *Module) Execute(cfg *config.Config) error {
 		if ui.GetConfirmation("Would you like to configure Cursor AI now?") {
 			// Redirect to configuration
 			ui.ShowInfo("Please use the Configuration Manager to set up Cursor AI")
-			return nil
+			return types.ErrNavigateBack
 		}
-		return nil
+		return types.ErrNavigateBack
 	}
 
 	for {
@@ -57,7 +57,7 @@ func (m *Module) Execute(cfg *config.Config) error {
 		
 		choice, err := ui.SelectFromList("Select report type:", options)
 		if err != nil || choice == 5 {
-			return nil
+			return types.ErrNavigateBack
 		}
 
 		switch choice {

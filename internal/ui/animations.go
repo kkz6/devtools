@@ -55,6 +55,36 @@ func ShowBanner() {
 		Render("Your development toolkit manager")
 	
 	fmt.Println(subtitle)
+	
+	// Add author info with beautiful styling
+	authorBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#6366F1")).
+		Padding(0, 2).
+		MarginTop(1).
+		MarginLeft(2).
+		Width(40)
+	
+	nameStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B")).
+		Bold(true)
+	
+	labelStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#9CA3AF"))
+	
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#60A5FA"))
+	
+	authorInfo := fmt.Sprintf("%s %s\n%s %s\n%s %s",
+		labelStyle.Render("Created by:"),
+		nameStyle.Render("Karthick"),
+		labelStyle.Render("Email:"),
+		valueStyle.Render("karthick@gigcodes.com"),
+		labelStyle.Render("Website:"),
+		valueStyle.Render("devkarti.com"),
+	)
+	
+	fmt.Println(authorBox.Render(authorInfo))
 	fmt.Println()
 }
 

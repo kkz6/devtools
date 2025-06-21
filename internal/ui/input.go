@@ -143,38 +143,7 @@ func GetConfirmation(message string) bool {
 	return response == "yes" || response == "y"
 }
 
-// SelectFromList allows selecting from a list of options
+// SelectFromList allows selecting from a list of options using arrow keys
 func SelectFromList(title string, options []string) (int, error) {
-	fmt.Println(SubtitleStyle.Render(title))
-	
-	for i, option := range options {
-		fmt.Printf("%s %s\n", 
-			Primary.Sprint(fmt.Sprintf("%d.", i+1)),
-			option,
-		)
-	}
-	
-	input, err := GetInput(
-		"Select an option",
-		fmt.Sprintf("Enter a number (1-%d)", len(options)),
-		false,
-		func(s string) error {
-			var choice int
-			if _, err := fmt.Sscanf(s, "%d", &choice); err != nil {
-				return fmt.Errorf("please enter a valid number")
-			}
-			if choice < 1 || choice > len(options) {
-				return fmt.Errorf("please enter a number between 1 and %d", len(options))
-			}
-			return nil
-		},
-	)
-	
-	if err != nil {
-		return -1, err
-	}
-	
-	var choice int
-	fmt.Sscanf(input, "%d", &choice)
-	return choice - 1, nil
+	return SelectFromListInteractive(title, options)
 } 

@@ -48,7 +48,7 @@ func (m *Module) Execute(cfg *config.Config) error {
 		
 		choice, err := ui.SelectFromList("Select configuration to manage:", options)
 		if err != nil || choice == 6 {
-			return nil
+			return types.ErrNavigateBack
 		}
 
 		switch choice {

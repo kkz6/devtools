@@ -1,6 +1,9 @@
 package types
 
-import "github.com/kkz6/devtools/internal/config"
+import (
+	"errors"
+	"github.com/kkz6/devtools/internal/config"
+)
 
 // ModuleInfo contains metadata about a module
 type ModuleInfo struct {
@@ -13,4 +16,7 @@ type ModuleInfo struct {
 type Module interface {
 	Execute(cfg *config.Config) error
 	Info() ModuleInfo
-} 
+}
+
+// ErrNavigateBack is returned when user wants to go back to main menu
+var ErrNavigateBack = errors.New("navigate back") 
