@@ -5,34 +5,54 @@ alwaysApply: false
 ---
 # DevTools Module Creation Guide
 
-## Overview
-This guide defines the standard process for creating new modules in the DevTools project. Each module should follow this structure to maintain consistency and leverage the existing UI framework.
+## Project Overview
+DevTools is a modular command-line toolkit created by Karthick (karthick@gigcodes.com, devkarti.com) for managing development tools, Git signing configurations, and more. The project uses Go 1.23+ with a beautiful TUI powered by Bubble Tea and Lipgloss.
+
+## Architecture Overview
+
+### Core Components
+- **Main Entry**: [main.go](mdc:main.go) - Application entry point with main loop
+- **Configuration**: [internal/config/config.go](mdc:internal/config/config.go) - YAML-based configuration management
+- **Module System**: [internal/modules/](mdc:internal/modules) - Pluggable module architecture
+- **UI Framework**: [internal/ui/](mdc:internal/ui) - Rich terminal UI components
+- **Types**: [internal/types/types.go](mdc:internal/types/types.go) - Shared interfaces and types
+
+### Key Features
+1. **Interactive Navigation**: Arrow-key based menus throughout the application
+2. **Beautiful UI**: Gradient titles, animated banners, styled boxes
+3. **Author Branding**: Displays Karthick's information prominently
+4. **Error Handling**: Special `ErrNavigateBack` for clean menu navigation
 
 ## Module Structure
 
 ### 1. Module Package Structure
-Each new module should be created in its own package under `internal/modules/`:
+Each module lives in `internal/modules/yourmodule/`:
 ```
 internal/modules/
 └── yourmodule/
     ├── module.go      # Main module implementation
     ├── types.go       # Module-specific types (if needed)
+    ├── api.go         # External API interactions (if needed)
     └── utils.go       # Helper functions (if needed)
 ```
 
 ### 2. Module Interface Implementation
-Every module must implement the Module interface defined in [internal/types/types.go](mdc:internal/types/types.go):
+Every module must implement the Module interface from [internal/types/types.go](mdc:internal/types/types.go):
 
 ```go
 type Module interface {
     Execute(cfg *config.Config) error
     Info() ModuleInfo
 }
+
+type ModuleInfo struct {
+    ID          string
+    Name        string
+    Description string
+}
 ```
 
-### 3. Basic Module Template
-Use this template for [module.go](mdc:internal/modules/yourmodule/module.go):
-
+### 3. Complete Module Template
 ```go
 package yourmodule
 
@@ -64,55 +84,68 @@ func (m *Module) Info() types.ModuleInfo {
 
 // Execute runs the module
 func (m *Module) Execute(cfg *config.Config) error {
-    // Show banner
     ui.ShowBanner()
     
-    // Display module title with gradient
     title := ui.GetGradientTitle("🎯 Your Module Title")
     fmt.Println(title)
     fmt.Println()
 
-    // Module implementation here
-    return m.runModule(cfg)
-}
-
-func (m *Module) runModule(cfg *config.Config) error {
-    // Your module logic here
-    return nil
+    // Main module loop
+    for {
+        options := []string{
+            "Option 1",
+            "Option 2",
+            "Option 3",
+            "Back to main menu",
+        }
+        
+        choice, err := ui.SelectFromList("Select an action:", options)
+        if err != nil {
+            return types.ErrNavigateBack
+        }
+        
+        switch choice {
+        case 0:
+            if err := m.handleOption1(cfg); err != nil {
+                ui.ShowError(fmt.Sprintf("Failed: %v", err))
+            }
+        case 1:
+            if err := m.handleOption2(cfg); err != nil {
+                ui.ShowError(fmt.Sprintf("Failed: %v", err))
+            }
+        case 2:
+            if err := m.handleOption3(cfg); err != nil {
+                ui.ShowError(fmt.Sprintf("Failed: %v", err))
+            }
+        case 3:
+            return types.ErrNavigateBack // Clean navigation back
+        }
+        
+        // Only pause if we completed an action
+        if choice < 3 {
+            fmt.Print("\nPress Enter to continue...")
+            fmt.Scanln()
+        }
+    }
 }
 ```
 
-### 4. UI Integration Patterns
+### 4. UI Components Reference
 
-#### Use Animated Menus for Options
+#### Arrow-Key Selection Menus (NEW!)
+All selection menus now use arrow keys instead of number input:
 ```go
-options := []string{
-    "Option 1",
-    "Option 2",
-    "Back to main menu",
-}
-
-ui.ShowAnimatedList("Select an option:", options)
-
-choice, err := ui.SelectFromList("", options)
+options := []string{"Option 1", "Option 2", "Cancel"}
+choice, err := ui.SelectFromList("Choose an option:", options)
 if err != nil {
-    return nil
-}
-
-switch choice {
-case 0:
-    // Handle option 1
-case 1:
-    // Handle option 2
-case 2:
-    return nil
+    return types.ErrNavigateBack
 }
 ```
 
-#### Use Loading Animations for Long Operations
+#### Loading Animations
 ```go
 err := ui.ShowLoadingAnimation("Processing data", func() error {
-    // Your long-running operation here
+    // Long-running operation
     return processData()
 })
 if err != nil {
@@ -120,16 +153,16 @@ if err != nil {
 }
 ```
 
-#### Use Input Components for User Input
+#### User Input
 ```go
 // Text input with validation
-input, err := ui.GetInput(
-    "📝 Enter value",
-    "placeholder text",
+value, err := ui.GetInput(
+    "📝 Enter username",
+    "placeholder",
     false, // not password
     func(s string) error {
         if len(s) < 3 {
-            return fmt.Errorf("value must be at least 3 characters")
+            return fmt.Errorf("username must be at least 3 characters")
         }
         return nil
     },
@@ -140,207 +173,262 @@ password, err := ui.GetInput(
     "🔑 Enter password",
     "password",
     true, // password mode
-    nil,  // no validation
+    nil,
 )
 
-// Confirmation dialog
-if ui.GetConfirmation("⚠️ Are you sure you want to proceed?") {
-    // User confirmed
+// Confirmation (uses yes/no input)
+if ui.GetConfirmation("⚠️ Are you sure?") {
+    // Proceed
 }
 ```
 
-#### Use Styled Messages
+#### Styled Messages
 ```go
-ui.ShowSuccess("Operation completed successfully!")
-ui.ShowError("Operation failed: " + err.Error())
-ui.ShowWarning("This action cannot be undone")
-ui.ShowInfo("Processing your request...")
+ui.ShowSuccess("✅ Operation completed!")
+ui.ShowError("❌ Operation failed: " + err.Error())
+ui.ShowWarning("⚠️ This action cannot be undone")
+ui.ShowInfo("ℹ️ Processing your request...")
 ```
 
-#### Display Information in Boxes
+#### Information Boxes
 ```go
-content := "Your formatted content here"
-box := ui.CreateBox("📦 Box Title", content)
+box := ui.CreateBox("📦 Title", "Content goes here")
 fmt.Println(box)
 ```
 
-### 5. Configuration Integration
-
-#### Add Module-Specific Config
-Update [internal/config/config.go](mdc:internal/config/config.go) if your module needs configuration:
-
+#### Progress Bars
 ```go
-// Add to Config struct
-YourModule YourModuleConfig `yaml:"yourmodule"`
+progress := ui.NewProgressBar("Processing files", totalFiles)
+for i, file := range files {
+    progress.UpdateTitle(fmt.Sprintf("Processing %s", file))
+    processFile(file)
+    progress.Increment()
+}
+progress.Finish()
+```
 
-// Define your config type
-type YourModuleConfig struct {
-    Setting1 string `yaml:"setting1"`
-    Setting2 bool   `yaml:"setting2"`
+### 5. Navigation Best Practices
+
+#### Clean Menu Navigation
+Always return `types.ErrNavigateBack` when user selects "Back to main menu":
+```go
+if choice == len(options)-1 { // Last option is usually "Back"
+    return types.ErrNavigateBack
 }
 ```
 
-#### Access Configuration in Module
+#### Handling Sub-menus
+```go
+func (m *Module) handleSubmenu(cfg *config.Config) error {
+    for {
+        options := []string{"Sub-option 1", "Sub-option 2", "Back"}
+        choice, err := ui.SelectFromList("Submenu:", options)
+        if err != nil || choice == 2 {
+            return nil // Return to parent menu
+        }
+        
+        // Handle choices...
+    }
+}
+```
+
+### 6. Configuration Integration
+
+#### Add Module Configuration
+Update [internal/config/config.go](mdc:internal/config/config.go):
+```go
+type Config struct {
+    // ... existing fields ...
+    YourModule YourModuleConfig `yaml:"yourmodule"`
+}
+
+type YourModuleConfig struct {
+    APIKey   string `yaml:"api_key"`
+    Endpoint string `yaml:"endpoint"`
+    Enabled  bool   `yaml:"enabled"`
+}
+```
+
+#### Access and Update Configuration
 ```go
 func (m *Module) Execute(cfg *config.Config) error {
-    // Access your module's config
-    if cfg.YourModule.Setting1 == "" {
-        // Prompt for missing config
-        value, err := ui.GetInput(
-            "Enter setting1",
-            "default value",
-            false,
-            nil,
-        )
-        if err != nil {
-            return err
+    // Check configuration
+    if cfg.YourModule.APIKey == "" {
+        ui.ShowWarning("Module not configured")
+        if ui.GetConfirmation("Configure now?") {
+            return m.configure(cfg)
         }
-        cfg.YourModule.Setting1 = value
+        return types.ErrNavigateBack
     }
     
-    // Use config values
+    // Use configuration...
+}
+
+func (m *Module) configure(cfg *config.Config) error {
+    apiKey, err := ui.GetInput(
+        "🔑 Enter API Key",
+        "your-api-key",
+        true, // password mode
+        nil,
+    )
+    if err != nil {
+        return err
+    }
+    
+    cfg.YourModule.APIKey = apiKey
+    
+    // Configuration is auto-saved by main loop
     return nil
 }
 ```
 
-### 6. Module Registration
+### 7. Module Registration
 
-#### Register in [internal/modules/register.go](mdc:internal/modules/register.go):
+Register in [internal/modules/register.go](mdc:internal/modules/register.go):
 ```go
 import (
-    // ... existing imports ...
+    // ... other imports ...
     "github.com/kkz6/devtools/internal/modules/yourmodule"
 )
 
 func RegisterAll(registry *Registry) {
-    // ... existing registrations ...
-    
-    // Register your module
+    registry.Register(gitsigning.New())
+    registry.Register(configmanager.New())
+    registry.Register(cursorreport.New())
+    // Add your module
     registry.Register(yourmodule.New())
 }
 ```
 
-### 7. Error Handling Best Practices
+### 8. Error Handling Patterns
 
-1. **Wrap errors with context**:
-   ```go
-   if err != nil {
-       return fmt.Errorf("failed to perform action: %w", err)
-   }
-   ```
-
-2. **Use UI components for user-facing errors**:
-   ```go
-   if err != nil {
-       ui.ShowError(fmt.Sprintf("Failed: %v", err))
-       return err
-   }
-   ```
-
-3. **Handle cancellations gracefully**:
-   ```go
-   input, err := ui.GetInput(...)
-   if err != nil {
-       if err.Error() == "cancelled" {
-           return nil // User cancelled, not an error
-       }
-       return err
-   }
-   ```
-
-### 8. Testing Checklist
-
-Before finalizing your module:
-
-1. ✅ Module appears in the main menu
-2. ✅ All user inputs have proper validation
-3. ✅ Long operations show loading animations
-4. ✅ Success/error messages are displayed appropriately
-5. ✅ Configuration is saved and loaded correctly
-6. ✅ Module can be exited gracefully
-7. ✅ Error messages are user-friendly
-
-### 9. Example: Complete Module Implementation
-
-See [internal/modules/gitsigning/module.go](mdc:internal/modules/gitsigning/module.go) for a complete example that demonstrates:
-- Menu navigation
-- User input with validation
-- Loading animations
-- Configuration management
-- Error handling
-- Sub-module organization (SSH and GPG signers)
-
-### 10. Module Development Workflow
-
-1. **Create module package**: `mkdir -p internal/modules/yourmodule`
-2. **Implement module.go** using the template above
-3. **Add configuration** if needed in config.go
-4. **Register module** in register.go
-5. **Test the module** by running the application
-6. **Add documentation** in module comments
-
-## UI Component Reference
-
-- **Animations**: [internal/ui/animations.go](mdc:internal/ui/animations.go)
-- **Input Components**: [internal/ui/input.go](mdc:internal/ui/input.go)
-- **Menu System**: [internal/ui/menu.go](mdc:internal/ui/menu.go)
-- **Styles**: [internal/ui/styles.go](mdc:internal/ui/styles.go)
-
-## Best Practices
-
-1. **Keep modules focused**: Each module should do one thing well
-2. **Use consistent naming**: Module IDs should be kebab-case, names should be title case
-3. **Provide clear descriptions**: Help users understand what each module does
-4. **Handle edge cases**: Always validate inputs and handle errors gracefully
-5. **Use animations sparingly**: Only for operations that take time
-6. **Save configuration changes**: Always persist user preferences
-7. **Provide feedback**: Users should always know what's happening
-
-## Common Patterns
-
-### Sub-menus within a module
+#### User Cancellation
 ```go
-func (m *Module) Execute(cfg *config.Config) error {
-    for {
-        options := []string{"Sub-option 1", "Sub-option 2", "Back"}
-        choice, err := ui.SelectFromList("Choose action:", options)
-        if err != nil || choice == 2 {
-            return nil
-        }
-        
-        switch choice {
-        case 0:
-            if err := m.handleOption1(cfg); err != nil {
-                ui.ShowError(err.Error())
-            }
-        case 1:
-            if err := m.handleOption2(cfg); err != nil {
-                ui.ShowError(err.Error())
-            }
-        }
+input, err := ui.GetInput(...)
+if err != nil {
+    if err.Error() == "cancelled" {
+        return nil // Not an error, user cancelled
+    }
+    return fmt.Errorf("failed to get input: %w", err)
+}
+```
+
+#### API Errors
+```go
+if err != nil {
+    ui.ShowError(fmt.Sprintf("API error: %v", err))
+    return nil // Continue in module, don't exit
+}
+```
+
+#### Critical Errors
+```go
+if err != nil {
+    return fmt.Errorf("critical error: %w", err) // Will exit module
+}
+```
+
+### 9. Example Modules
+
+1. **Git Signing Module** ([internal/modules/gitsigning/](mdc:internal/modules/gitsigning))
+   - Complex menu navigation
+   - SSH and GPG key management
+   - GitHub API integration
+   - Cleanup functionality
+
+2. **Configuration Manager** ([internal/modules/configmanager/](mdc:internal/modules/configmanager))
+   - Settings management
+   - Input validation
+   - Nested configuration
+
+3. **Cursor Report Module** ([internal/modules/cursorreport/](mdc:internal/modules/cursorreport))
+   - Data visualization (charts, tables)
+   - Cost analysis
+   - Report generation
+
+### 10. Testing Checklist
+
+- [ ] Module appears in main menu with correct name/description
+- [ ] Arrow-key navigation works in all menus
+- [ ] "Back to main menu" returns without success message
+- [ ] All inputs have proper validation
+- [ ] Errors are handled gracefully
+- [ ] Long operations show loading animations
+- [ ] Configuration saves correctly
+- [ ] Module can handle missing configuration
+- [ ] Success/error messages are appropriate
+- [ ] No duplicate success messages
+
+### 11. Common Patterns
+
+#### API Integration
+```go
+type APIClient struct {
+    baseURL string
+    apiKey  string
+}
+
+func (c *APIClient) fetchData() (*Data, error) {
+    req, err := http.NewRequest("GET", c.baseURL+"/data", nil)
+    if err != nil {
+        return nil, err
+    }
+    
+    req.Header.Set("Authorization", "Bearer "+c.apiKey)
+    
+    // ... perform request ...
+}
+```
+
+#### Table Display
+```go
+table := cursorreport.NewTable("Title")
+table.AddHeader("Column 1", "Column 2", "Column 3")
+table.AddRow("Value 1", "Value 2", "Value 3")
+fmt.Println(table.Render())
+```
+
+#### Clipboard Integration
+```go
+if ui.GetConfirmation("Copy to clipboard?") {
+    err := copyToClipboard(content)
+    if err != nil {
+        ui.ShowWarning("Could not copy to clipboard")
+    } else {
+        ui.ShowSuccess("Copied to clipboard!")
     }
 }
 ```
 
-### Progress tracking for multi-step operations
-```go
-steps := []string{"Step 1", "Step 2", "Step 3"}
-progress := ui.NewProgressBar("Processing", len(steps))
+### 12. Style Guidelines
 
-for i, step := range steps {
-    progress.UpdateTitle(step)
-    
-    // Perform step
-    if err := performStep(i); err != nil {
-        progress.Finish()
-        return err
-    }
-    
-    progress.Increment()
-}
+1. **Module Names**: Use descriptive, action-oriented names
+2. **Icons**: Use appropriate emoji icons in titles (🔐 🚀 📊 ⚙️ etc.)
+3. **Messages**: Be clear and concise
+4. **Errors**: Provide actionable error messages
+5. **Confirmations**: Always confirm destructive actions
 
-progress.Finish()
-ui.ShowSuccess("All steps completed!")
-```
+### 13. Performance Considerations
 
-This guide ensures consistent, user-friendly module development that integrates seamlessly with the DevTools framework.
+1. Use loading animations for operations > 500ms
+2. Implement pagination for large lists
+3. Cache API responses when appropriate
+4. Clean up resources (close files, connections)
+
+### 14. Security Best Practices
+
+1. Never log sensitive information (tokens, passwords)
+2. Use password mode for sensitive inputs
+3. Validate all user inputs
+4. Sanitize data before displaying
+5. Use secure API communication (HTTPS)
+
+## Quick Reference
+
+- **Main Loop**: [main.go](mdc:main.go) - See the application flow
+- **UI Components**: [internal/ui/](mdc:internal/ui) - All UI utilities
+- **Module Examples**: [internal/modules/](mdc:internal/modules) - Existing modules
+- **Configuration**: [config.example.yaml](mdc:config.example.yaml) - Config structure
+- **Types**: [internal/types/types.go](mdc:internal/types/types.go) - Core types
+
+Remember: The goal is to create modules that are intuitive, beautiful, and maintain the high-quality user experience established by Karthick in the DevTools project.
