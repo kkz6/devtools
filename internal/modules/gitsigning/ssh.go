@@ -113,6 +113,16 @@ func (s *SSHSigner) ConfigureGit() error {
 	return nil
 }
 
+// GetPublicKey returns the SSH public key
+func (s *SSHSigner) GetPublicKey() (string, error) {
+	pubKeyPath := s.cfg.SSH.SigningKeyPath + ".pub"
+	pubKeyData, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read public key: %w", err)
+	}
+	return string(pubKeyData), nil
+}
+
 // UploadToGitHub uploads the SSH signing key to GitHub
 func (s *SSHSigner) UploadToGitHub() error {
 	if s.cfg.GitHub.Token == "" || s.cfg.GitHub.Username == "" {

@@ -13,6 +13,7 @@ type Config struct {
 	GitHub   GitHubConfig   `yaml:"github"`
 	SSH      SSHConfig      `yaml:"ssh"`
 	GPG      GPGConfig      `yaml:"gpg"`
+	Cursor   CursorConfig   `yaml:"cursor"`
 	Settings GlobalSettings `yaml:"settings"`
 }
 
@@ -33,6 +34,13 @@ type SSHConfig struct {
 type GPGConfig struct {
 	KeyID string `yaml:"key_id"`
 	Email string `yaml:"email"`
+}
+
+// CursorConfig holds Cursor AI-related configuration
+type CursorConfig struct {
+	APIKey      string `yaml:"api_key"`
+	APIEndpoint string `yaml:"api_endpoint"`
+	CurrentPlan string `yaml:"current_plan"` // "free", "pro", "business"
 }
 
 // GlobalSettings holds global application settings

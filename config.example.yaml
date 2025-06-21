@@ -14,5 +14,10 @@ gpg:
   key_id: ""
   email: "your-email@example.com"
 
+cursor:
+  api_key: "cur_your_api_key_here"
+  api_endpoint: "https://api.cursor.sh/v1"
+  current_plan: "free" # Options: "free", "pro", "business"
+
 settings:
   preferred_signing_method: "ssh" # Options: "ssh" or "gpg"

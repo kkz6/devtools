@@ -40,7 +40,7 @@ func main() {
 	selectedModule, err := ui.ShowAnimatedMenu(registry.List())
 	if err != nil {
 		if err.Error() == "user exited" {
-			ui.AnimatedText("👋 Thanks for using DevTools! See you next time.", 20*time.Millisecond)
+			fmt.Println("\n👋 Thanks for using DevTools! See you next time.")
 			os.Exit(0)
 		}
 		ui.ShowError(fmt.Sprintf("Error: %v", err))
@@ -72,5 +72,5 @@ func main() {
 
 	// Show completion message
 	fmt.Println()
-	ui.AnimatedText("✨ Task completed successfully!", 30*time.Millisecond)
+	ui.ShowSuccess("✨ Task completed successfully!")
 } 

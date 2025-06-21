@@ -40,13 +40,14 @@ func (m *Module) Execute(cfg *config.Config) error {
 			"GitHub Configuration",
 			"SSH Configuration", 
 			"GPG Configuration",
+			"Cursor AI Configuration",
 			"Global Settings",
 			"View Configuration Path",
 			"Back to main menu",
 		}
 		
 		choice, err := ui.SelectFromList("Select configuration to manage:", options)
-		if err != nil || choice == 5 {
+		if err != nil || choice == 6 {
 			return nil
 		}
 
@@ -64,15 +65,19 @@ func (m *Module) Execute(cfg *config.Config) error {
 				ui.ShowError(fmt.Sprintf("Failed to configure GPG: %v", err))
 			}
 		case 3:
+			if err := m.configureCursor(cfg); err != nil {
+				ui.ShowError(fmt.Sprintf("Failed to configure Cursor: %v", err))
+			}
+		case 4:
 			if err := m.configureGlobalSettings(cfg); err != nil {
 				ui.ShowError(fmt.Sprintf("Failed to configure global settings: %v", err))
 			}
-		case 4:
+		case 5:
 			m.showConfigPath()
 		}
 
 		// Save configuration after each change
-		if choice >= 0 && choice <= 3 {
+		if choice >= 0 && choice <= 4 {
 			err = ui.ShowLoadingAnimation("Saving configuration", func() error {
 				return config.Save(cfg)
 			})
@@ -224,6 +229,69 @@ func (m *Module) configureGPG(cfg *config.Config) error {
 		return err
 	}
 	cfg.GPG.KeyID = keyID
+
+	return nil
+}
+
+// configureCursor handles Cursor AI configuration
+func (m *Module) configureCursor(cfg *config.Config) error {
+	fmt.Println()
+	ui.ShowInfo("Configure Cursor AI settings for usage tracking and analysis")
+	fmt.Println()
+
+	// API Key
+	apiKey, err := ui.GetInput(
+		"🔑 Cursor API Key",
+		"cur_...",
+		true, // password mode
+		func(s string) error {
+			if len(s) < 1 {
+				return fmt.Errorf("API key cannot be empty")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+	cfg.Cursor.APIKey = apiKey
+
+	// API Endpoint (optional, with default)
+	endpoint, err := ui.GetInput(
+		"🌐 API Endpoint (press Enter for default)",
+		cfg.Cursor.APIEndpoint,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	if endpoint == "" {
+		cfg.Cursor.APIEndpoint = "https://api.cursor.sh/v1"
+	} else {
+		cfg.Cursor.APIEndpoint = endpoint
+	}
+
+	// Current Plan
+	plans := []string{
+		"Free",
+		"Pro ($20/month)",
+		"Business ($40/month)",
+	}
+	
+	choice, err := ui.SelectFromList("Select your current Cursor plan:", plans)
+	if err != nil {
+		return err
+	}
+
+	switch choice {
+	case 0:
+		cfg.Cursor.CurrentPlan = "free"
+	case 1:
+		cfg.Cursor.CurrentPlan = "pro"
+	case 2:
+		cfg.Cursor.CurrentPlan = "business"
+	}
 
 	return nil
 }
