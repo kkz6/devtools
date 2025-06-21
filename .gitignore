@@ -1,35 +1,40 @@
-# Binaries for programs and plugins
+# Binaries
+devtools
+devtools-*
 *.exe
-*.exe~
-*.dll
+
+# Go build artifacts
+*.o
+*.a
 *.so
-*.dylib
 
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool
 *.out
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Dependency directories
+vendor/
 
 # Go workspace file
 go.work
 
-# Binary
-devtools
-
-# IDE
+# IDE directories
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# OS
+# OS files
 .DS_Store
+Thumbs.db
 
-# Configuration (don't commit actual config with credentials)
+# Configuration (don't commit personal config)
 config.yaml
-.devtools/ 
+!config.example.yaml
+
+# Temporary files
+*.tmp
+*.log 

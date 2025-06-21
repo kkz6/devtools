@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -11,7 +12,24 @@ import (
 	"github.com/kkz6/devtools/internal/ui"
 )
 
+var (
+	// Version is set during build
+	Version = "dev"
+	// BuildTime is set during build
+	BuildTime = "unknown"
+)
+
 func main() {
+	// Parse command line flags
+	versionFlag := flag.Bool("version", false, "Show version information")
+	flag.Parse()
+
+	// Handle version flag
+	if *versionFlag {
+		fmt.Printf("DevTools %s (built %s)\n", Version, BuildTime)
+		os.Exit(0)
+	}
+
 	// Clear screen and show banner
 	fmt.Print("\033[H\033[2J")
 	ui.ShowBanner()

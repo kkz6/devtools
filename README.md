@@ -1,22 +1,89 @@
-# DevTools Manager
+# DevTools
 
-A modular Go application for managing various development tools and configurations. Currently supports Git commit signing setup with SSH and GPG keys.
+A powerful and modular command-line toolkit for managing development tools, Git signing configurations, and more.
+
+![Build Status](https://github.com/kkz6/devtools/actions/workflows/build.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Go Version](https://img.shields.io/badge/go-%3E%3D1.23-blue.svg)
 
 ## Features
 
-- **Git Signing Configuration**: Set up SSH or GPG signing for Git commits
+### 🔐 Git Signing Configuration
 
-  - Generate new SSH/GPG keys
+- **SSH Signing** (Recommended)
+  - Generate new SSH signing keys
   - Import existing SSH keys
-  - Configure Git to use signing keys
-  - Upload SSH signing keys to GitHub
-  - Export GPG public keys
+  - Upload keys to GitHub automatically
+  - Configure Git for commit/tag signing
+- **GPG Signing**
+  - Generate new GPG keys
+  - Configure Git for GPG signing
+  - Export public keys with clipboard support
+- **Cleanup Tools**
+  - Remove GPG/SSH keys from system and GitHub
+  - Clear Git signing configuration
+  - Start fresh with new keys
 
-- **Modular Architecture**: Easy to extend with new tools
-- **Configuration Management**: All settings stored in YAML file
-- **Interactive CLI**: User-friendly menu system
+### 📊 Cursor AI Usage Reporter
+
+- Track API usage and costs
+- Compare Free vs Pro vs Business plans
+- View 30-day usage history with charts
+- Get cost-saving recommendations
+- Export usage data
+
+### ⚙️ Configuration Manager
+
+- Manage all settings from one place
+- Secure credential storage
+- Easy configuration updates
+
+### 🎨 Beautiful UI
+
+- Interactive menus with keyboard navigation
+- Animated banners and loading indicators
+- Color-coded messages and status updates
+- Progress bars and spinners
 
 ## Installation
+
+### Quick Install (macOS)
+
+The easiest way to install DevTools on macOS is using our install script:
+
+```bash
+# System-wide installation (may require sudo)
+curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh | bash
+
+# User-only installation (no sudo required)
+curl -fsSL https://raw.githubusercontent.com/kkz6/devtools/main/install.sh | bash -s -- --user
+```
+
+The install script will:
+
+- Download the latest release
+- Ask for sudo permission only if needed
+- Install to `/usr/local/bin` (system) or `~/.local/bin` (user)
+- Create the configuration directory at `~/.devtools`
+- Provide PATH setup instructions if needed
+
+### Manual Installation
+
+#### From Release (Recommended)
+
+1. Download the latest release for your platform from [GitHub Releases](https://github.com/kkz6/devtools/releases)
+2. Extract and move to your PATH:
+
+   ```bash
+   # macOS/Linux
+   chmod +x devtools-darwin-amd64
+   sudo mv devtools-darwin-amd64 /usr/local/bin/devtools
+
+   # Verify installation
+   devtools --version
+   ```
+
+#### Build from Source
 
 ```bash
 # Clone the repository
@@ -26,8 +93,18 @@ cd devtools
 # Build the application
 go build -o devtools
 
+# Install to system (optional)
+sudo mv devtools /usr/local/bin/
+
 # Run the application
-./devtools
+devtools
+```
+
+### Homebrew (Coming Soon)
+
+```bash
+brew tap kkz6/devtools
+brew install devtools
 ```
 
 ## Configuration
@@ -56,22 +133,45 @@ settings:
 
 ## Usage
 
-1. Run the application:
+Simply run:
 
-   ```bash
-   ./devtools
-   ```
+```bash
+devtools
+```
 
-2. Select "Git Commit Signing Setup" from the menu
+You'll be presented with an interactive menu where you can:
 
-3. Choose your preferred signing method:
+1. **Git Commit Signing Setup** - Configure SSH/GPG signing for secure commits
+2. **Configuration Manager** - Manage your DevTools settings
+3. **Cursor AI Usage Report** - Track your AI assistant usage and costs
 
-   - SSH signing (recommended)
-   - GPG signing
-   - Export existing SSH key to GitHub
-   - Import existing SSH signing key
+### Quick Examples
 
-4. Follow the interactive prompts
+#### Set up Git SSH Signing
+
+```bash
+devtools
+# Select "Git Commit Signing Setup"
+# Choose "SSH signing setup (recommended)"
+# Follow the prompts
+```
+
+#### Check Cursor AI Usage
+
+```bash
+devtools
+# Select "Cursor AI Usage Report"
+# View your usage statistics and cost analysis
+```
+
+#### Clean Up Old Keys
+
+```bash
+devtools
+# Select "Git Commit Signing Setup"
+# Choose "Clean up GPG/SSH signing (Remove all)"
+# Select what to remove
+```
 
 ## GitHub Personal Access Token
 
@@ -120,10 +220,19 @@ devtools/
 
 ## Requirements
 
-- Go 1.21 or later
-- Git
-- SSH (for SSH signing)
-- GPG (for GPG signing, will be installed automatically on macOS)
+- **macOS**: 10.15 (Catalina) or later
+- **Linux**: Ubuntu 20.04+ or equivalent
+- **Windows**: Windows 10+ (WSL recommended)
+
+### Runtime Dependencies
+
+- Git 2.34+ (for SSH signing support)
+- OpenSSH (included in macOS/Linux)
+- GPG (optional, auto-installed on macOS if needed)
+
+### Build Requirements
+
+- Go 1.23 or later (only if building from source)
 
 ## License
 
