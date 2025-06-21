@@ -40,15 +40,21 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
-      - name: Build
-        env:
-          GOARCH: ${{ matrix.goarch }}
+      - name: Set build version
+        id: version
+        shell: bash
         run: |
           VERSION=${GITHUB_REF_NAME}
           if [[ "$VERSION" != v* ]]; then
             VERSION="dev-${GITHUB_SHA::7}"
           fi
-          go build -v -ldflags "-X main.Version=$VERSION -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o ${{ matrix.output_name }} .
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+
+      - name: Build
+        env:
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -v -ldflags "-X main.Version=${{ steps.version.outputs.VERSION }} -X main.BuildTime=${{ steps.version.outputs.BUILD_TIME }}" -o ${{ matrix.output_name }} .
 
       - name: Test
         run: go test -v ./...
