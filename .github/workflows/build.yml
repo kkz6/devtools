@@ -8,6 +8,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -79,22 +83,42 @@ jobs:
           path: ./artifacts
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+        run: |
+          # Generate release notes
+          NOTES="## DevTools ${{ github.ref_name }}
+
+          ### What's New
+          - See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details
+
+          ### Installation
+
+          #### Quick Install (macOS)
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+          \`\`\`
+
+          #### Manual Download
+          Download the appropriate binary for your platform below.
+
+          ### Author
+          Created by Karthick
+          - Email: karthick@gigcodes.com
+          - Website: https://devkarti.com"
+
+          gh release create "${{ github.ref_name }}" \
+            --title "DevTools ${{ github.ref_name }}" \
+            --notes "$NOTES" \
+            --draft=false \
+            --prerelease=false
 
       - name: Upload Release Assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for file in ./artifacts/**/devtools-*; do
             asset_name=$(basename "$file")
             echo "Uploading $asset_name"
             gh release upload "${{ github.ref_name }}" "$file" --clobber
           done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
