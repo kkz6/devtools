@@ -1,0 +1,18 @@
+# DevTools Configuration Example
+# Copy this file to ~/.devtools/config.yaml and update with your values
+
+github:
+  username: "kkz6"
+  token: "ghp_your_personal_access_token_here"
+  email: "your-email@example.com"
+
+ssh:
+  signing_key_path: "~/.ssh/git-ssh-signing-key"
+  key_comment: "git-ssh-signing-key"
+
+gpg:
+  key_id: ""
+  email: "your-email@example.com"
+
+settings:
+  preferred_signing_method: "ssh" # Options: "ssh" or "gpg"
