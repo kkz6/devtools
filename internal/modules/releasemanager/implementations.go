@@ -434,6 +434,223 @@ func (m *Module) generateReleaseNotes() error {
 	return nil
 }
 
+// updateChangelog helps update the CHANGELOG.md file
+func (m *Module) updateChangelog() error {
+	fmt.Println()
+	ui.ShowInfo("📝 Update Changelog")
+	fmt.Println()
+
+	// Get current version
+	currentVersion, err := m.getCurrentVersion()
+	if err != nil {
+		currentVersion = "v0.0.0"
+	}
+
+	// Calculate next versions
+	nextVersions := m.calculateNextVersions(currentVersion)
+
+	// Select version for changelog entry
+	options := []string{
+		fmt.Sprintf("Next Patch (%s)", nextVersions.Patch),
+		fmt.Sprintf("Next Minor (%s)", nextVersions.Minor),
+		fmt.Sprintf("Next Major (%s)", nextVersions.Major),
+		"Custom Version",
+		"Update Unreleased Section",
+		"Back",
+	}
+
+	choice, err := ui.SelectFromList("Select version for changelog entry:", options)
+	if err != nil || choice == 5 {
+		return nil
+	}
+
+	var targetVersion string
+	switch choice {
+	case 0:
+		targetVersion = nextVersions.Patch
+	case 1:
+		targetVersion = nextVersions.Minor
+	case 2:
+		targetVersion = nextVersions.Major
+	case 3:
+		customVersion, err := ui.GetInput(
+			"Enter version (e.g., v1.2.3)",
+			"",
+			false,
+			func(s string) error {
+				if !strings.HasPrefix(s, "v") {
+					return fmt.Errorf("version must start with 'v'")
+				}
+				return nil
+			},
+		)
+		if err != nil {
+			return err
+		}
+		targetVersion = customVersion
+	case 4:
+		targetVersion = "Unreleased"
+	}
+
+	// Select change type
+	changeTypes := []string{
+		"Added - for new features",
+		"Changed - for changes in existing functionality",
+		"Deprecated - for soon-to-be removed features",
+		"Removed - for now removed features",
+		"Fixed - for any bug fixes",
+		"Security - in case of vulnerabilities",
+		"Back",
+	}
+
+	changeChoice, err := ui.SelectFromList("Select change type:", changeTypes)
+	if err != nil || changeChoice == 6 {
+		return nil
+	}
+
+	changeType := []string{"Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"}[changeChoice]
+
+	// Get change description
+	fmt.Println()
+	ui.ShowInfo("Enter change description (press Enter twice to finish):")
+	fmt.Println()
+
+	var lines []string
+	for {
+		line, err := ui.GetInput("", "", false, nil)
+		if err != nil {
+			if err.Error() == "cancelled" {
+				return nil
+			}
+			// Empty line
+			if len(lines) > 0 && line == "" {
+				break
+			}
+		}
+		if line == "" && len(lines) > 0 && lines[len(lines)-1] == "" {
+			lines = lines[:len(lines)-1] // Remove last empty line
+			break
+		}
+		lines = append(lines, line)
+	}
+
+	if len(lines) == 0 {
+		ui.ShowWarning("No changes entered")
+		return nil
+	}
+
+	// Read current changelog
+	content, err := os.ReadFile("CHANGELOG.md")
+	if err != nil {
+		return fmt.Errorf("failed to read CHANGELOG.md: %v", err)
+	}
+
+	// Update changelog
+	updatedContent := m.insertChangelogEntry(string(content), targetVersion, changeType, lines)
+
+	// Write updated changelog
+	if err := os.WriteFile("CHANGELOG.md", []byte(updatedContent), 0644); err != nil {
+		return fmt.Errorf("failed to write CHANGELOG.md: %v", err)
+	}
+
+	ui.ShowSuccess("✅ Changelog updated successfully!")
+
+	// Show the changes
+	fmt.Println()
+	ui.ShowInfo("Changes added:")
+	fmt.Printf("\n## [%s]\n\n### %s\n\n", targetVersion, changeType)
+	for _, line := range lines {
+		fmt.Printf("- %s\n", line)
+	}
+	fmt.Println()
+
+	// Ask if user wants to open the changelog
+	if ui.GetConfirmation("Open changelog to review?") {
+		return m.openChangelog()
+	}
+
+	return nil
+}
+
+// insertChangelogEntry inserts a new entry into the changelog content
+func (m *Module) insertChangelogEntry(content, version, changeType string, changes []string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inserted := false
+	currentDate := time.Now().Format("2006-01-02")
+
+	for i, line := range lines {
+		// Look for the right place to insert
+		if !inserted {
+			if version == "Unreleased" && strings.HasPrefix(line, "## [Unreleased]") {
+				// Add to existing Unreleased section
+				result = append(result, line)
+
+				// Find or create the change type section
+				changeTypeFound := false
+				j := i + 1
+				for j < len(lines) && !strings.HasPrefix(lines[j], "##") {
+					if strings.HasPrefix(lines[j], "### "+changeType) {
+						changeTypeFound = true
+						// Add changes under this section
+						result = append(result, lines[j])
+						j++
+						// Skip empty lines
+						for j < len(lines) && strings.TrimSpace(lines[j]) == "" {
+							result = append(result, lines[j])
+							j++
+						}
+						// Add new changes
+						for _, change := range changes {
+							result = append(result, fmt.Sprintf("- %s", change))
+						}
+						// Continue with the rest
+						for k := j; k < len(lines); k++ {
+							result = append(result, lines[k])
+						}
+						return strings.Join(result, "\n")
+					}
+					result = append(result, lines[j])
+					j++
+				}
+
+				if !changeTypeFound {
+					// Add new change type section
+					result = append(result, "")
+					result = append(result, "### "+changeType)
+					result = append(result, "")
+					for _, change := range changes {
+						result = append(result, fmt.Sprintf("- %s", change))
+					}
+					// Continue with the rest
+					for k := j; k < len(lines); k++ {
+						result = append(result, lines[k])
+					}
+					return strings.Join(result, "\n")
+				}
+			} else if strings.HasPrefix(line, "## [Unreleased]") && version != "Unreleased" {
+				// Insert new version section after Unreleased
+				result = append(result, line)
+				result = append(result, "")
+				result = append(result, fmt.Sprintf("## [%s] - %s", version, currentDate))
+				result = append(result, "")
+				result = append(result, "### "+changeType)
+				result = append(result, "")
+				for _, change := range changes {
+					result = append(result, fmt.Sprintf("- %s", change))
+				}
+				inserted = true
+			} else {
+				result = append(result, line)
+			}
+		} else {
+			result = append(result, line)
+		}
+	}
+
+	return strings.Join(result, "\n")
+}
+
 // Helper methods
 
 // runCommandSilent runs a command without showing output

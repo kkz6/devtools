@@ -188,12 +188,13 @@ func (m *Module) handleDevelopmentMenu() error {
 		"Run Tests",
 		"Run Linter",
 		"Clean Build Artifacts",
+		"Update Changelog",
 		"Open Changelog",
 		"Back",
 	}
 
 	choice, err := ui.SelectFromList("Development Workflow:", options)
-	if err != nil || choice == 6 {
+	if err != nil || choice == 7 {
 		return nil
 	}
 
@@ -209,6 +210,8 @@ func (m *Module) handleDevelopmentMenu() error {
 	case 4:
 		return m.cleanArtifacts()
 	case 5:
+		return m.updateChangelog()
+	case 6:
 		return m.openChangelog()
 	}
 

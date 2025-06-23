@@ -30,7 +30,7 @@ func (m *Module) Info() types.ModuleInfo {
 // Execute runs the configuration manager
 func (m *Module) Execute(cfg *config.Config) error {
 	ui.ShowBanner()
-	
+
 	title := ui.GetGradientTitle("⚙️  Configuration Manager")
 	fmt.Println(title)
 	fmt.Println()
@@ -38,16 +38,18 @@ func (m *Module) Execute(cfg *config.Config) error {
 	for {
 		options := []string{
 			"GitHub Configuration",
-			"SSH Configuration", 
+			"SSH Configuration",
 			"GPG Configuration",
 			"Cursor AI Configuration",
+			"Sentry Configuration",
+			"Linear Configuration",
 			"Global Settings",
 			"View Configuration Path",
 			"Back to main menu",
 		}
-		
+
 		choice, err := ui.SelectFromList("Select configuration to manage:", options)
-		if err != nil || choice == 6 {
+		if err != nil || choice == 8 {
 			return types.ErrNavigateBack
 		}
 
@@ -69,15 +71,23 @@ func (m *Module) Execute(cfg *config.Config) error {
 				ui.ShowError(fmt.Sprintf("Failed to configure Cursor: %v", err))
 			}
 		case 4:
+			if err := m.configureSentry(cfg); err != nil {
+				ui.ShowError(fmt.Sprintf("Failed to configure Sentry: %v", err))
+			}
+		case 5:
+			if err := m.configureLinear(cfg); err != nil {
+				ui.ShowError(fmt.Sprintf("Failed to configure Linear: %v", err))
+			}
+		case 6:
 			if err := m.configureGlobalSettings(cfg); err != nil {
 				ui.ShowError(fmt.Sprintf("Failed to configure global settings: %v", err))
 			}
-		case 5:
+		case 7:
 			m.showConfigPath()
 		}
 
 		// Save configuration after each change
-		if choice >= 0 && choice <= 4 {
+		if choice >= 0 && choice <= 6 {
 			err = ui.ShowLoadingAnimation("Saving configuration", func() error {
 				return config.Save(cfg)
 			})
@@ -118,7 +128,7 @@ func (m *Module) configureGitHub(cfg *config.Config) error {
 	ui.ShowInfo("Create a token at: https://github.com/settings/tokens")
 	ui.ShowInfo("Required scopes: write:ssh_signing_key (for SSH key upload)")
 	fmt.Println()
-	
+
 	token, err := ui.GetInput(
 		"🔑 GitHub Personal Access Token",
 		"ghp_...",
@@ -278,7 +288,7 @@ func (m *Module) configureCursor(cfg *config.Config) error {
 		"Pro ($20/month)",
 		"Business ($40/month)",
 	}
-	
+
 	choice, err := ui.SelectFromList("Select your current Cursor plan:", plans)
 	if err != nil {
 		return err
@@ -296,6 +306,95 @@ func (m *Module) configureCursor(cfg *config.Config) error {
 	return nil
 }
 
+// configureSentry handles Sentry configuration
+func (m *Module) configureSentry(cfg *config.Config) error {
+	fmt.Println()
+	ui.ShowInfo("Configure Sentry settings for bug tracking integration")
+	fmt.Println()
+
+	// API Key
+	ui.ShowInfo("Create an API token at: https://sentry.io/settings/account/api/auth-tokens/")
+	ui.ShowInfo("Required scopes: project:read, org:read, issue:read")
+	fmt.Println()
+
+	apiKey, err := ui.GetInput(
+		"🔑 Sentry API Key",
+		cfg.Sentry.APIKey,
+		true, // password mode
+		func(s string) error {
+			if len(s) < 1 {
+				return fmt.Errorf("API key cannot be empty")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+	cfg.Sentry.APIKey = apiKey
+
+	// Base URL (for self-hosted Sentry or different regions)
+	ui.ShowInfo("Default: https://sentry.io/api/0")
+	ui.ShowInfo("For US region: https://sentry.io/api/0")
+	ui.ShowInfo("For EU region: https://de.sentry.io/api/0")
+	ui.ShowInfo("For self-hosted: https://your-sentry-instance.com/api/0")
+	fmt.Println()
+
+	baseURL, err := ui.GetInput(
+		"🌐 Sentry Base URL",
+		cfg.Sentry.BaseURL,
+		false,
+		func(s string) error {
+			if len(s) > 0 && !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") {
+				return fmt.Errorf("base URL must start with http:// or https://")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+	if baseURL == "" {
+		cfg.Sentry.BaseURL = "https://sentry.io/api/0"
+	} else {
+		cfg.Sentry.BaseURL = strings.TrimRight(baseURL, "/")
+	}
+
+	return nil
+}
+
+// configureLinear handles Linear configuration
+func (m *Module) configureLinear(cfg *config.Config) error {
+	fmt.Println()
+	ui.ShowInfo("Configure Linear settings for issue tracking")
+	fmt.Println()
+
+	// API Key
+	ui.ShowInfo("Create an API key at: https://linear.app/settings/api")
+	fmt.Println()
+
+	apiKey, err := ui.GetInput(
+		"🔑 Linear API Key",
+		cfg.Linear.APIKey,
+		true, // password mode
+		func(s string) error {
+			if len(s) < 1 {
+				return fmt.Errorf("API key cannot be empty")
+			}
+			if !strings.HasPrefix(s, "lin_api_") {
+				return fmt.Errorf("Linear API key should start with 'lin_api_'")
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+	cfg.Linear.APIKey = apiKey
+
+	return nil
+}
+
 // configureGlobalSettings handles global application settings
 func (m *Module) configureGlobalSettings(cfg *config.Config) error {
 	fmt.Println()
@@ -306,7 +405,7 @@ func (m *Module) configureGlobalSettings(cfg *config.Config) error {
 		"SSH (recommended)",
 		"GPG",
 	}
-	
+
 	choice, err := ui.SelectFromList("Select preferred signing method:", options)
 	if err != nil {
 		return err
@@ -328,10 +427,8 @@ func (m *Module) showConfigPath() {
 	configPath := config.GetConfigPath()
 	box := ui.CreateBox("📁 Configuration File Location", configPath)
 	fmt.Println(box)
-	
+
 	ui.ShowInfo("You can manually edit this file if needed")
 	ui.ShowInfo("Press Enter to continue...")
 	fmt.Scanln()
 }
-
- 

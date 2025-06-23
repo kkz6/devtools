@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"github.com/kkz6/devtools/internal/modules/bugmanager"
 	"github.com/kkz6/devtools/internal/modules/configmanager"
 	"github.com/kkz6/devtools/internal/modules/cursorreport"
 	"github.com/kkz6/devtools/internal/modules/gitsigning"
@@ -20,6 +21,9 @@ func RegisterAll(registry *Registry) {
 
 	// Register Release Manager module
 	registry.Register(releasemanager.New())
+
+	// Register Bug Manager module
+	registry.Register(bugmanager.New())
 
 	// Add more modules here as they are developed
 }

@@ -32,11 +32,14 @@ A powerful and modular command-line toolkit for managing development tools, Git 
 - Get cost-saving recommendations
 - Export usage data
 
-### ⚙️ Configuration Manager
+### 🔧 Configuration Manager
 
-- Manage all settings from one place
-- Secure credential storage
-- Easy configuration updates
+- Manage GitHub credentials and tokens
+- Configure SSH and GPG signing keys
+- Set up Cursor AI API integration
+- Configure Sentry API settings with custom base URLs (for different regions or self-hosted instances)
+- Configure Linear API credentials
+- Store and manage global settings
 
 ### 🎨 Beautiful UI
 
@@ -44,6 +47,26 @@ A powerful and modular command-line toolkit for managing development tools, Git 
 - Animated banners and loading indicators
 - Color-coded messages and status updates
 - Progress bars and spinners
+
+### 🚀 Release Manager
+
+- Create semantic version releases
+- Generate changelogs from commit history
+- Create and push Git tags
+- Manage GitHub releases with auto-generated notes
+- Support for major, minor, and patch releases
+
+### 🐛 Bug Manager
+
+- **Sentry Integration**: Connect to your Sentry projects
+- **Linear Integration**: Create tasks in Linear from Sentry bugs
+- **Project Mapping**: Map Sentry projects to Linear projects
+- **Smart Bug Sync**:
+  - List up to 5 recent unresolved bugs from Sentry
+  - Review bug details before creating Linear issues
+  - Automatic priority assignment based on severity and impact
+  - Custom label creation and management
+- **Streamlined Workflow**: Convert error tracking data into actionable tasks
 
 ## Installation
 
@@ -138,45 +161,76 @@ settings:
 
 ## Usage
 
-Simply run:
+Run the tool with:
 
 ```bash
 devtools
 ```
 
-You'll be presented with an interactive menu where you can:
+This will present an interactive menu where you can select the desired functionality.
 
-1. **Git Commit Signing Setup** - Configure SSH/GPG signing for secure commits
-2. **Configuration Manager** - Manage your DevTools settings
-3. **Cursor AI Usage Report** - Track your AI assistant usage and costs
+### Configuration Manager
 
-### Quick Examples
+Manage all your development tool configurations in one place:
 
-#### Set up Git SSH Signing
+- GitHub credentials for API access
+- SSH keys for Git signing
+- GPG keys for commit verification
+- Cursor AI API settings
 
-```bash
-devtools
-# Select "Git Commit Signing Setup"
-# Choose "SSH signing setup (recommended)"
-# Follow the prompts
-```
+### Git Signing
 
-#### Check Cursor AI Usage
+Set up commit signing for enhanced security:
 
-```bash
-devtools
-# Select "Cursor AI Usage Report"
-# View your usage statistics and cost analysis
-```
+1. Choose between SSH or GPG signing
+2. Generate or import signing keys
+3. Configure Git to use the signing method
+4. Upload public keys to GitHub
 
-#### Clean Up Old Keys
+### Cursor AI Reporter
 
-```bash
-devtools
-# Select "Git Commit Signing Setup"
-# Choose "Clean up GPG/SSH signing (Remove all)"
-# Select what to remove
-```
+Monitor your AI assistant usage:
+
+1. Configure your Cursor API key
+2. Select a date range for the report
+3. View usage statistics and costs
+4. Export data for further analysis
+
+### Release Manager
+
+Create and manage releases:
+
+1. Select release type (major/minor/patch)
+2. Review and edit changelog
+3. Create Git tag and GitHub release
+4. Push changes to remote repository
+
+### Bug Manager
+
+Sync bugs from Sentry to Linear:
+
+1. **Initial Setup**:
+
+   - Configure Sentry API key (get from Sentry Settings → API Keys)
+   - Configure Linear API key (get from Linear Settings → API → Personal API keys)
+
+2. **Project Configuration**:
+
+   - Map Sentry projects to Linear projects
+   - Set default labels for imported bugs
+   - Configure team and project associations
+
+3. **Bug Syncing**:
+   - Select a configured project mapping
+   - View up to 5 recent unresolved bugs from Sentry
+   - Review bug details including:
+     - Error level and platform
+     - Number of occurrences and affected users
+     - Error message and stack trace information
+   - Confirm and create the issue in Linear with:
+     - Automatic priority based on severity
+     - Relevant labels (bug, sentry, level, platform, impact)
+     - Comprehensive description with Sentry link
 
 ## GitHub Personal Access Token
 

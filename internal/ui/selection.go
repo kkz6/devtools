@@ -79,6 +79,18 @@ func (m selectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.choice = i.index
 			}
 			return m, tea.Quit
+
+		// Handle number keys 1-9 for direct selection
+		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+			num := int(keypress[0] - '0')
+			if num <= len(m.list.Items()) {
+				// Select the item directly
+				m.list.Select(num - 1)
+				if item, ok := m.list.SelectedItem().(simpleItem); ok {
+					m.choice = item.index
+					return m, tea.Quit
+				}
+			}
 		}
 	}
 
@@ -91,22 +103,22 @@ func (m selectionModel) View() string {
 	if m.quitting {
 		return ""
 	}
-	
+
 	// Add title
 	titleStyle := lipgloss.NewStyle().
 		Foreground(PrimaryColor).
 		Bold(true).
 		MarginBottom(1)
-	
+
 	view := titleStyle.Render(m.title) + "\n"
 	view += m.list.View()
-	
+
 	// Add help text
 	helpStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#9CA3AF")).
 		MarginTop(1)
-	view += "\n" + helpStyle.Render("↑/↓ to navigate • Enter to select • Esc to cancel")
-	
+	view += "\n" + helpStyle.Render("↑/↓ navigate • 1-9 quick select • enter select • esc cancel")
+
 	return lipgloss.NewStyle().Margin(1, 0).Render(view)
 }
 
@@ -133,7 +145,7 @@ func SelectFromListInteractive(title string, options []string) (int, error) {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
-	
+
 	// Simple key bindings
 	l.KeyMap = list.KeyMap{
 		CursorUp: key.NewBinding(
@@ -145,8 +157,8 @@ func SelectFromListInteractive(title string, options []string) (int, error) {
 	}
 
 	m := selectionModel{
-		list:  l,
-		title: title,
+		list:   l,
+		title:  title,
 		choice: -1,
 	}
 
@@ -166,4 +178,4 @@ func SelectFromListInteractive(title string, options []string) (int, error) {
 	}
 
 	return -1, fmt.Errorf("unexpected model type")
-} 
+}

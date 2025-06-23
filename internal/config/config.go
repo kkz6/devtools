@@ -14,6 +14,8 @@ type Config struct {
 	SSH      SSHConfig      `yaml:"ssh"`
 	GPG      GPGConfig      `yaml:"gpg"`
 	Cursor   CursorConfig   `yaml:"cursor"`
+	Sentry   SentryConfig   `yaml:"sentry"`
+	Linear   LinearConfig   `yaml:"linear"`
 	Settings GlobalSettings `yaml:"settings"`
 }
 
@@ -48,6 +50,34 @@ type GlobalSettings struct {
 	PreferredSigningMethod string `yaml:"preferred_signing_method"` // "ssh" or "gpg"
 }
 
+// SentryConfig holds Sentry-related configuration
+type SentryConfig struct {
+	APIKey   string                   `yaml:"api_key"`
+	BaseURL  string                   `yaml:"base_url"`
+	Projects map[string]SentryProject `yaml:"projects"`
+}
+
+// SentryProject represents a Sentry project configuration
+type SentryProject struct {
+	OrganizationSlug string `yaml:"organization_slug"`
+	ProjectSlug      string `yaml:"project_slug"`
+	LinearProjectID  string `yaml:"linear_project_id"` // Mapped Linear project
+}
+
+// LinearConfig holds Linear-related configuration
+type LinearConfig struct {
+	APIKey   string                   `yaml:"api_key"`
+	Projects map[string]LinearProject `yaml:"projects"`
+}
+
+// LinearProject represents a Linear project configuration
+type LinearProject struct {
+	TeamID      string   `yaml:"team_id"`
+	ProjectID   string   `yaml:"project_id"`
+	ProjectName string   `yaml:"project_name"`
+	Labels      []string `yaml:"labels"` // Default labels for bugs
+}
+
 // New creates a new default configuration
 func New() *Config {
 	homeDir, _ := os.UserHomeDir()
@@ -55,6 +85,13 @@ func New() *Config {
 		SSH: SSHConfig{
 			SigningKeyPath: filepath.Join(homeDir, ".ssh", "git-ssh-signing-key"),
 			KeyComment:     "git-ssh-signing-key",
+		},
+		Sentry: SentryConfig{
+			BaseURL:  "https://sentry.io/api/0",
+			Projects: make(map[string]SentryProject),
+		},
+		Linear: LinearConfig{
+			Projects: make(map[string]LinearProject),
 		},
 		Settings: GlobalSettings{
 			PreferredSigningMethod: "ssh",
@@ -65,7 +102,7 @@ func New() *Config {
 // Load loads configuration from file
 func Load() (*Config, error) {
 	configPath := getConfigPath()
-	
+
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -95,6 +132,17 @@ func Load() (*Config, error) {
 	if cfg.Settings.PreferredSigningMethod == "" {
 		cfg.Settings.PreferredSigningMethod = "ssh"
 	}
+	// Set Sentry defaults
+	if cfg.Sentry.BaseURL == "" {
+		cfg.Sentry.BaseURL = "https://sentry.io/api/0"
+	}
+	if cfg.Sentry.Projects == nil {
+		cfg.Sentry.Projects = make(map[string]SentryProject)
+	}
+	// Set Linear defaults
+	if cfg.Linear.Projects == nil {
+		cfg.Linear.Projects = make(map[string]LinearProject)
+	}
 
 	return &cfg, nil
 }
@@ -102,7 +150,7 @@ func Load() (*Config, error) {
 // Save saves configuration to file
 func Save(cfg *Config) error {
 	configPath := getConfigPath()
-	
+
 	// Ensure config directory exists
 	configDir := filepath.Dir(configPath)
 	if err := os.MkdirAll(configDir, 0755); err != nil {
@@ -130,4 +178,4 @@ func getConfigPath() string {
 // GetConfigPath returns the path to the configuration file (exported)
 func GetConfigPath() string {
 	return getConfigPath()
-} 
+}

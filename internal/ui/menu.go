@@ -14,15 +14,15 @@ import (
 
 var (
 	docStyle = lipgloss.NewStyle().Margin(1, 2)
-	
+
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(PrimaryColor)
-	
+
 	titleStyle = lipgloss.NewStyle().
-		Background(PrimaryColor).
-		Foreground(lipgloss.Color("#FAFAFA")).
-		Bold(true).
-		Padding(0, 1)
+			Background(PrimaryColor).
+			Foreground(lipgloss.Color("#FAFAFA")).
+			Bold(true).
+			Padding(0, 1)
 )
 
 type item struct {
@@ -96,6 +96,18 @@ func (m menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.choice = i.id
 			}
 			return m, tea.Quit
+
+		// Handle number keys 1-9 for direct selection
+		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+			num := int(keypress[0] - '0')
+			if num <= len(m.list.Items()) {
+				// Select the item directly
+				m.list.Select(num - 1)
+				if item, ok := m.list.SelectedItem().(item); ok {
+					m.choice = item.id
+					return m, tea.Quit
+				}
+			}
 		}
 	}
 
@@ -111,7 +123,19 @@ func (m menuModel) View() string {
 	if m.quitting {
 		return ""
 	}
-	return docStyle.Render(m.list.View())
+
+	// Main list view
+	listView := m.list.View()
+
+	// Custom help text at the bottom
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#9CA3AF")).
+		Margin(1, 0, 0, 0).
+		Padding(0, 2)
+
+	helpText := helpStyle.Render("↑/k up • ↓/j down • 1-9 quick select • enter select • q quit")
+
+	return docStyle.Render(listView + "\n" + helpText)
 }
 
 // ShowAnimatedMenu displays an animated menu and returns the selected module ID
@@ -125,7 +149,7 @@ func ShowAnimatedMenu(modules []types.ModuleInfo) (string, error) {
 			id:          module.ID,
 		})
 	}
-	
+
 	// Add exit option
 	items = append(items, item{
 		title:       "Exit",
@@ -142,6 +166,7 @@ func ShowAnimatedMenu(modules []types.ModuleInfo) (string, error) {
 	l.Title = GetGradientTitle("🚀 DevTools Manager by Karthick")
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false) // Disable built-in help
 	l.Styles.Title = titleStyle
 	l.Styles.PaginationStyle = list.DefaultStyles().PaginationStyle.
 		Foreground(lipgloss.Color("#9CA3AF"))
@@ -186,4 +211,4 @@ func ShowAnimatedMenu(modules []types.ModuleInfo) (string, error) {
 	}
 
 	return "", fmt.Errorf("unexpected model type")
-} 
+}
