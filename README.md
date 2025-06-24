@@ -41,6 +41,14 @@ A powerful and modular command-line toolkit for managing development tools, Git 
 - Configure Linear API credentials
 - Store and manage global settings
 
+### 📱 Flutter Application Manager
+
+- Build and manage Android apps (APK/Bundle)
+- Version and build number management
+- Android signing configuration and backup
+- Device and emulator management
+- Project setup and dependency management
+
 ### 🎨 Beautiful UI
 
 - Interactive menus with keyboard navigation
@@ -67,6 +75,53 @@ A powerful and modular command-line toolkit for managing development tools, Git 
   - Automatic priority assignment based on severity and impact
   - Custom label creation and management
 - **Streamlined Workflow**: Convert error tracking data into actionable tasks
+
+### 📱 Flutter Application Manager (Detailed)
+
+- **Android Build Management**
+  - Build APK files (Debug/Release)
+  - Build App Bundles for Play Store
+  - Split APKs by architecture
+  - Custom flavor builds
+  - Automatic signing configuration
+- **Version Management**
+  - Semantic versioning support
+  - Auto-increment version and build numbers
+  - Git tag creation and management
+  - Version history tracking
+  - CI/CD friendly version bumping
+- **Signing Configuration**
+  - Create new Android keystores
+  - Import existing keystores
+  - Secure password generation
+  - Keystore verification
+  - Export signing configurations
+- **Backup & Restore**
+  - Encrypted backup archives
+  - Password-protected backups
+  - Easy restoration process
+  - Cloud export support
+  - Backup integrity verification
+- **Project Setup & Dependencies**
+  - Flutter environment checks
+  - Dependency management (pub get/upgrade)
+  - Android SDK configuration
+  - Firebase integration setup
+  - Build flavor configuration
+  - App icon generation
+- **Clean & Rebuild**
+  - Flutter clean operations
+  - Build cache management
+  - iOS Pod reset
+  - Full project reset with restoration
+  - Selective cleaning options
+- **Device Management**
+  - List connected devices
+  - Launch Android emulators
+  - Launch iOS simulators
+  - Install APKs to devices
+  - Stream device logs
+  - Take device screenshots
 
 ## Installation
 
@@ -155,6 +210,13 @@ gpg:
   key_id: ""
   email: "your-email@example.com"
 
+flutter:
+  android_sdk_path: "" # Optional, auto-detected if ANDROID_HOME is set
+  keystore_dir: "~/.devtools/flutter/keystores"
+  backup_dir: "~/.devtools/flutter/backups"
+  default_build_mode: "release"
+  projects: {} # Project-specific configurations
+
 settings:
   preferred_signing_method: "ssh"
 ```
@@ -232,6 +294,46 @@ Sync bugs from Sentry to Linear:
      - Relevant labels (bug, sentry, level, platform, impact)
      - Comprehensive description with Sentry link
 
+### Flutter Application Manager
+
+Manage Flutter app development workflow:
+
+1. **Building Android Apps**:
+
+   - Navigate to your Flutter project directory
+   - Select "Build Android (APK/Bundle)"
+   - Choose build type (Debug APK, Release APK, App Bundle, Split APKs)
+   - Configure signing for release builds
+   - Monitor build progress and output location
+
+2. **Version Management**:
+
+   - View current version and build number
+   - Bump version (major/minor/patch)
+   - Set custom version numbers
+   - Auto-increment build numbers
+   - Create Git tags for releases
+
+3. **Signing Configuration**:
+
+   - Create new keystore with secure passwords
+   - Import existing keystores
+   - Export signing configuration for backup
+   - Verify keystore validity
+
+4. **Backup & Restore**:
+
+   - Create encrypted backups of signing configuration
+   - Restore from previous backups
+   - Password-protect sensitive data
+   - Export to cloud storage
+
+5. **Device Management**:
+   - Launch Android emulators or iOS simulators
+   - Install APKs to connected devices
+   - Stream device logs for debugging
+   - Take screenshots from devices
+
 ## GitHub Personal Access Token
 
 To upload SSH keys to GitHub, you'll need a personal access token with the `write:ssh_signing_key` scope:
@@ -288,6 +390,14 @@ devtools/
 - Git 2.34+ (for SSH signing support)
 - OpenSSH (included in macOS/Linux)
 - GPG (optional, auto-installed on macOS if needed)
+
+#### For Flutter Application Manager:
+
+- Flutter SDK 3.0+ (with Dart)
+- Android SDK (for Android builds)
+- Java 11+ (for Android builds)
+- Xcode (for iOS features on macOS)
+- CocoaPods (for iOS dependencies)
 
 ### Build Requirements
 
