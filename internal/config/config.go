@@ -16,6 +16,7 @@ type Config struct {
 	Cursor   CursorConfig   `yaml:"cursor"`
 	Sentry   SentryConfig   `yaml:"sentry"`
 	Linear   LinearConfig   `yaml:"linear"`
+	Flutter  FlutterConfig  `yaml:"flutter"`
 	Settings GlobalSettings `yaml:"settings"`
 }
 
@@ -78,6 +79,24 @@ type LinearProject struct {
 	Labels      []string `yaml:"labels"` // Default labels for bugs
 }
 
+// FlutterConfig holds Flutter-related configuration
+type FlutterConfig struct {
+	AndroidSDKPath   string                     `yaml:"android_sdk_path"`
+	KeystoreDir      string                     `yaml:"keystore_dir"`
+	BackupDir        string                     `yaml:"backup_dir"`
+	DefaultBuildMode string                     `yaml:"default_build_mode"` // "debug" or "release"
+	Projects         map[string]*FlutterProject `yaml:"projects"`
+}
+
+// FlutterProject represents a Flutter project configuration
+type FlutterProject struct {
+	Path         string `yaml:"path"`
+	KeystorePath string `yaml:"keystore_path"`
+	KeyAlias     string `yaml:"key_alias"`
+	LastVersion  string `yaml:"last_version"`
+	LastBuildNum string `yaml:"last_build_num"`
+}
+
 // New creates a new default configuration
 func New() *Config {
 	homeDir, _ := os.UserHomeDir()
@@ -92,6 +111,12 @@ func New() *Config {
 		},
 		Linear: LinearConfig{
 			Projects: make(map[string]LinearProject),
+		},
+		Flutter: FlutterConfig{
+			KeystoreDir:      filepath.Join(homeDir, ".devtools", "flutter", "keystores"),
+			BackupDir:        filepath.Join(homeDir, ".devtools", "flutter", "backups"),
+			DefaultBuildMode: "release",
+			Projects:         make(map[string]*FlutterProject),
 		},
 		Settings: GlobalSettings{
 			PreferredSigningMethod: "ssh",
@@ -142,6 +167,21 @@ func Load() (*Config, error) {
 	// Set Linear defaults
 	if cfg.Linear.Projects == nil {
 		cfg.Linear.Projects = make(map[string]LinearProject)
+	}
+	// Set Flutter defaults
+	if cfg.Flutter.KeystoreDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		cfg.Flutter.KeystoreDir = filepath.Join(homeDir, ".devtools", "flutter", "keystores")
+	}
+	if cfg.Flutter.BackupDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		cfg.Flutter.BackupDir = filepath.Join(homeDir, ".devtools", "flutter", "backups")
+	}
+	if cfg.Flutter.DefaultBuildMode == "" {
+		cfg.Flutter.DefaultBuildMode = "release"
+	}
+	if cfg.Flutter.Projects == nil {
+		cfg.Flutter.Projects = make(map[string]*FlutterProject)
 	}
 
 	return &cfg, nil
