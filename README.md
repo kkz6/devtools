@@ -24,6 +24,22 @@ A powerful and modular command-line toolkit for managing development tools, Git 
   - Clear Git signing configuration
   - Start fresh with new keys
 
+### 🐛 Issue Manager (Sentry/Linear)
+
+- **Multi-Instance Support**
+  - Manage multiple Linear accounts (work, personal, etc.)
+  - Manage multiple Sentry instances (cloud, self-hosted)
+  - Test connectivity for each instance
+- **Manual Issue Creation**
+  - Create issues in any Linear instance
+  - Full metadata support (type, priority, labels, state)
+  - Works independently without Sentry
+- **Smart Bug Sync**
+  - Connect any Sentry instance to any Linear instance
+  - Map Sentry projects to Linear teams/projects
+  - Batch sync with automatic priority assignment
+  - Option to resolve issues in Sentry after sync
+
 ### 📊 Cursor AI Usage Reporter
 
 - Track API usage and costs
@@ -63,18 +79,6 @@ A powerful and modular command-line toolkit for managing development tools, Git 
 - Create and push Git tags
 - Manage GitHub releases with auto-generated notes
 - Support for major, minor, and patch releases
-
-### 🐛 Bug Manager
-
-- **Sentry Integration**: Connect to your Sentry projects
-- **Linear Integration**: Create tasks in Linear from Sentry bugs
-- **Project Mapping**: Map Sentry projects to Linear projects
-- **Smart Bug Sync**:
-  - List up to 5 recent unresolved bugs from Sentry
-  - Review bug details before creating Linear issues
-  - Automatic priority assignment based on severity and impact
-  - Custom label creation and management
-- **Streamlined Workflow**: Convert error tracking data into actionable tasks
 
 ### 📱 Flutter Application Manager (Detailed)
 
@@ -122,6 +126,68 @@ A powerful and modular command-line toolkit for managing development tools, Git 
   - Install APKs to devices
   - Stream device logs
   - Take device screenshots
+
+### Issue Manager (Sentry/Linear)
+
+The Issue Manager now supports multiple instances of both Linear and Sentry, allowing you to:
+
+1. **Manage Multiple Instances**:
+
+   - Add multiple Linear API configurations (e.g., work, personal)
+   - Add multiple Sentry API configurations with different base URLs
+   - Test connectivity for each instance
+
+2. **Create Manual Issues**:
+
+   - Select any configured Linear instance
+   - Create issues with full metadata (type, priority, labels, state)
+   - No Sentry configuration required for manual issue creation
+
+3. **Sync Bugs Between Instances**:
+
+   - Create connections between specific Linear and Sentry instances
+   - Map Sentry projects to Linear teams/projects
+   - Configure default labels for synced issues
+   - Batch sync multiple issues with option to resolve in Sentry
+
+4. **Configuration Example**:
+
+```yaml
+# Multiple Linear instances
+linear:
+  instances:
+    work:
+      name: "Work Linear"
+      api_key: lin_api_work_key
+    personal:
+      name: "Personal Linear"
+      api_key: lin_api_personal_key
+
+# Multiple Sentry instances
+sentry:
+  instances:
+    work:
+      name: "Work Sentry"
+      api_key: work_sentry_key
+      base_url: https://sentry.io/api/0
+    self_hosted:
+      name: "Self-Hosted Sentry"
+      api_key: self_hosted_key
+      base_url: https://sentry.mycompany.com/api/0
+
+# Connections between instances
+bug_manager:
+  connections:
+    - name: "Work Projects"
+      sentry_instance: work
+      linear_instance: work
+      project_mappings:
+        - sentry_organization: my-org
+          sentry_project: backend
+          linear_team_id: team-uuid
+          linear_project_id: project-uuid
+          default_labels: [bug, sentry, backend]
+```
 
 ## Installation
 

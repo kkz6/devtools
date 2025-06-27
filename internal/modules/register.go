@@ -12,26 +12,26 @@ import (
 
 // RegisterAll registers all available modules
 func RegisterAll(registry *Registry) {
-	// Register Configuration Manager module
-	registry.Register(configmanager.New())
-
-	// Register Git Signing module
-	registry.Register(gitsigning.New())
-
-	// Register Cursor AI Report module
-	registry.Register(cursorreport.New())
-
-	// Register Release Manager module
-	registry.Register(releasemanager.New())
-
-	// Register Bug Manager module
+	// 1. Issue Manager (Bug Manager)
 	registry.Register(bugmanager.New())
 
-	// Register GitHub Repository Manager module
+	// 2. Flutter Application Manager
+	registry.Register(fluttermanager.New())
+
+	// 3. Release Manager
+	registry.Register(releasemanager.New())
+
+	// 4. GitHub Repository Manager
 	registry.Register(githubmanager.New())
 
-	// Register Flutter Application Manager module
-	registry.Register(fluttermanager.New())
+	// 5. Cursor AI Usage Reporter
+	registry.Register(cursorreport.New())
+
+	// 6. Git Commit Signing Setup
+	registry.Register(gitsigning.New())
+
+	// 7. Configuration Manager
+	registry.Register(configmanager.New())
 
 	// Add more modules here as they are developed
 }

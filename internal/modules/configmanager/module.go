@@ -310,7 +310,21 @@ func (m *Module) configureCursor(cfg *config.Config) error {
 func (m *Module) configureSentry(cfg *config.Config) error {
 	fmt.Println()
 	ui.ShowInfo("Configure Sentry settings for bug tracking integration")
+	ui.ShowWarning("Note: For multiple Sentry instances, use the Bug Manager's 'Manage Instances' option")
 	fmt.Println()
+
+	// Check if instances exist
+	if len(cfg.Sentry.Instances) > 0 {
+		ui.ShowInfo("You have configured Sentry instances in Bug Manager:")
+		for key, instance := range cfg.Sentry.Instances {
+			fmt.Printf("  • %s (%s)\n", instance.Name, key)
+		}
+		fmt.Println()
+
+		if !ui.GetConfirmation("Configure legacy single-instance settings? (For backward compatibility only)") {
+			return nil
+		}
+	}
 
 	// API Key
 	ui.ShowInfo("Create an API token at: https://sentry.io/settings/account/api/auth-tokens/")
@@ -360,6 +374,9 @@ func (m *Module) configureSentry(cfg *config.Config) error {
 		cfg.Sentry.BaseURL = strings.TrimRight(baseURL, "/")
 	}
 
+	// Suggest using Bug Manager for full functionality
+	ui.ShowInfo("\n💡 Tip: Use Bug Manager → Manage Instances for multiple Sentry accounts")
+
 	return nil
 }
 
@@ -367,7 +384,21 @@ func (m *Module) configureSentry(cfg *config.Config) error {
 func (m *Module) configureLinear(cfg *config.Config) error {
 	fmt.Println()
 	ui.ShowInfo("Configure Linear settings for issue tracking")
+	ui.ShowWarning("Note: For multiple Linear instances, use the Bug Manager's 'Manage Instances' option")
 	fmt.Println()
+
+	// Check if instances exist
+	if len(cfg.Linear.Instances) > 0 {
+		ui.ShowInfo("You have configured Linear instances in Bug Manager:")
+		for key, instance := range cfg.Linear.Instances {
+			fmt.Printf("  • %s (%s)\n", instance.Name, key)
+		}
+		fmt.Println()
+
+		if !ui.GetConfirmation("Configure legacy single-instance settings? (For backward compatibility only)") {
+			return nil
+		}
+	}
 
 	// API Key
 	ui.ShowInfo("Create an API key at: https://linear.app/settings/api")
@@ -391,6 +422,9 @@ func (m *Module) configureLinear(cfg *config.Config) error {
 		return err
 	}
 	cfg.Linear.APIKey = apiKey
+
+	// Suggest using Bug Manager for full functionality
+	ui.ShowInfo("\n💡 Tip: Use Bug Manager → Manage Instances for multiple Linear accounts")
 
 	return nil
 }

@@ -204,6 +204,9 @@ func ShowAnimatedMenu(modules []types.ModuleInfo) (string, error) {
 
 	// Get the choice
 	if m, ok := finalModel.(menuModel); ok {
+		if m.quitting {
+			return "", fmt.Errorf("user exited")
+		}
 		if m.choice == "exit" {
 			return "", fmt.Errorf("user exited")
 		}

@@ -1,23 +1,102 @@
 # DevTools Configuration Example
 # Copy this file to ~/.devtools/config.yaml and update with your values
 
+# GitHub configuration
 github:
-  username: "kkz6"
-  token: "ghp_your_personal_access_token_here"
-  email: "your-email@example.com"
+  username: your-github-username
+  token: ghp_your_github_personal_access_token
+  email: your-email@example.com
 
+# SSH signing configuration
 ssh:
-  signing_key_path: "~/.ssh/git-ssh-signing-key"
-  key_comment: "git-ssh-signing-key"
+  signing_key_path: ~/.ssh/git-ssh-signing-key
+  key_comment: git-ssh-signing-key
 
+# GPG signing configuration
 gpg:
-  key_id: ""
-  email: "your-email@example.com"
+  key_id: your-gpg-key-id
+  email: your-email@example.com
 
+# Cursor AI configuration
 cursor:
-  api_key: "cur_your_api_key_here"
-  api_endpoint: "https://api.cursor.sh/v1"
-  current_plan: "free" # Options: "free", "pro", "business"
+  api_key: your-cursor-api-key
+  api_endpoint: https://api.cursor.sh/v1
+  current_plan: free # Options: free, pro, business
 
+# Sentry configuration - supports multiple instances
+sentry:
+  instances:
+    work:
+      name: "Work Sentry"
+      api_key: your-work-sentry-api-key
+      base_url: https://sentry.io/api/0
+    personal:
+      name: "Personal Sentry"
+      api_key: your-personal-sentry-api-key
+      base_url: https://sentry.io/api/0
+
+# Linear configuration - supports multiple instances
+linear:
+  instances:
+    work:
+      name: "Work Linear"
+      api_key: lin_api_your_work_linear_key
+    personal:
+      name: "Personal Linear"
+      api_key: lin_api_your_personal_linear_key
+
+# Bug Manager configuration - connections between Sentry and Linear
+bug_manager:
+  connections:
+    - name: "Work Projects"
+      sentry_instance: work
+      linear_instance: work
+      project_mappings:
+        - sentry_organization: your-org
+          sentry_project: backend-api
+          linear_team_id: team-uuid
+          linear_project_id: project-uuid
+          linear_project_name: "Backend API"
+          default_labels:
+            - bug
+            - sentry
+            - backend
+        - sentry_organization: your-org
+          sentry_project: frontend-app
+          linear_team_id: team-uuid
+          linear_project_id: project-uuid-2
+          linear_project_name: "Frontend App"
+          default_labels:
+            - bug
+            - sentry
+            - frontend
+    - name: "Personal Projects"
+      sentry_instance: personal
+      linear_instance: personal
+      project_mappings:
+        - sentry_organization: personal-org
+          sentry_project: side-project
+          linear_team_id: personal-team-uuid
+          linear_project_id: "" # Optional - can be empty for team-only
+          linear_project_name: "Side Project (Team)"
+          default_labels:
+            - bug
+            - sentry
+
+# Flutter configuration
+flutter:
+  android_sdk_path: ~/Library/Android/sdk
+  keystore_dir: ~/.devtools/flutter/keystores
+  backup_dir: ~/.devtools/flutter/backups
+  default_build_mode: release
+  projects:
+    myapp:
+      path: ~/projects/myapp
+      keystore_path: ~/.devtools/flutter/keystores/myapp.keystore
+      key_alias: myapp
+      last_version: 1.0.0
+      last_build_num: "1"
+
+# Global settings
 settings:
-  preferred_signing_method: "ssh" # Options: "ssh" or "gpg"
+  preferred_signing_method: ssh # Options: ssh, gpg

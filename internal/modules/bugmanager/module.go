@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -31,18 +32,6 @@ func (m *Module) Info() types.ModuleInfo {
 
 // Execute runs the bug manager module
 func (m *Module) Execute(cfg *config.Config) error {
-	// Check if API keys are configured
-	if cfg.Sentry.APIKey == "" || cfg.Linear.APIKey == "" {
-		if err := m.configureAPIs(cfg); err != nil {
-			return err
-		}
-	}
-
-	// Check if there are any configured projects
-	if len(cfg.Sentry.Projects) == 0 && cfg.Sentry.APIKey != "" && cfg.Linear.APIKey != "" {
-		ui.ShowInfo("No project mappings found. Please configure projects first.")
-	}
-
 	// Show main menu
 	return m.showMainMenu(cfg)
 }
@@ -53,10 +42,8 @@ func (m *Module) showMainMenu(cfg *config.Config) error {
 		options := []string{
 			"Sync Bugs from Sentry",
 			"Create Manual Issue",
-			"Configure Projects",
-			"Configure APIs",
-			"Test API Connectivity",
-			"Resolve Sentry Issues",
+			"Manage Instances",
+			"Manage Connections",
 			"Back",
 		}
 
@@ -74,119 +61,68 @@ func (m *Module) showMainMenu(cfg *config.Config) error {
 			if err := m.createManualIssue(cfg); err != nil && err != types.ErrNavigateBack {
 				return err
 			}
-		case 2: // Configure projects
-			if err := m.configureProjects(cfg); err != nil && err != types.ErrNavigateBack {
+		case 2: // Manage instances
+			if err := m.manageInstances(cfg); err != nil && err != types.ErrNavigateBack {
 				return err
 			}
-		case 3: // Configure APIs
-			if err := m.configureAPIs(cfg); err != nil && err != types.ErrNavigateBack {
+		case 3: // Manage connections
+			if err := m.manageConnections(cfg); err != nil && err != types.ErrNavigateBack {
 				return err
 			}
-		case 4: // Test connectivity
-			if err := m.testConnectivity(cfg); err != nil && err != types.ErrNavigateBack {
-				return err
-			}
-		case 5: // Resolve Sentry issues
-			if err := m.resolveIssues(cfg); err != nil && err != types.ErrNavigateBack {
-				return err
-			}
-		case 6: // Back
+		case 4: // Back
 			return types.ErrNavigateBack
 		}
 	}
-}
-
-// configureAPIs handles API key configuration
-func (m *Module) configureAPIs(cfg *config.Config) error {
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		MarginBottom(1)
-
-	fmt.Println(titleStyle.Render("Configure API Keys"))
-
-	// Configure Sentry API Key (sensitive input)
-	sentryKey, err := ui.GetInput("Enter Sentry API Key", cfg.Sentry.APIKey, true, nil)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-	cfg.Sentry.APIKey = sentryKey
-
-	// Configure Linear API Key (sensitive input)
-	linearKey, err := ui.GetInput("Enter Linear API Key", cfg.Linear.APIKey, true, nil)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-	cfg.Linear.APIKey = linearKey
-
-	// Save configuration
-	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
-	}
-
-	ui.ShowSuccess("API keys configured successfully!")
-	return nil
-}
-
-// testConnectivity tests the API connectivity for both Sentry and Linear
-func (m *Module) testConnectivity(cfg *config.Config) error {
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		MarginBottom(1)
-
-	fmt.Println(titleStyle.Render("Testing API Connectivity"))
-
-	// Test Sentry connectivity
-	if cfg.Sentry.APIKey != "" {
-		ui.ShowInfo("Testing Sentry API connection...")
-		sentryClient := NewSentryClient(cfg.Sentry.APIKey, cfg.Sentry.BaseURL)
-
-		projects, err := sentryClient.GetProjects()
-		if err != nil {
-			ui.ShowWarning(fmt.Sprintf("Sentry API test failed: %v", err))
-		} else {
-			ui.ShowSuccess(fmt.Sprintf("Sentry API connected successfully! Found %d projects.", len(projects)))
-		}
-	} else {
-		ui.ShowWarning("Sentry API key not configured")
-	}
-
-	// Test Linear connectivity
-	if cfg.Linear.APIKey != "" {
-		ui.ShowInfo("Testing Linear API connection...")
-		linearClient := NewLinearClient(cfg.Linear.APIKey)
-
-		teams, err := linearClient.GetTeams()
-		if err != nil {
-			ui.ShowWarning(fmt.Sprintf("Linear API test failed: %v", err))
-		} else {
-			ui.ShowSuccess(fmt.Sprintf("Linear API connected successfully! Found %d teams.", len(teams)))
-		}
-	} else {
-		ui.ShowWarning("Linear API key not configured")
-	}
-
-	fmt.Println()
-	return nil
 }
 
 // createManualIssue handles manual issue creation in Linear
 func (m *Module) createManualIssue(cfg *config.Config) error {
-	// Check if Linear API key is configured
-	if cfg.Linear.APIKey == "" {
-		ui.ShowError("Linear API key not configured. Please configure it first.")
+	// Check if we have any Linear instances
+	if len(cfg.Linear.Instances) == 0 {
+		ui.ShowError("No Linear instances configured. Please add a Linear instance first.")
 		return nil
 	}
 
+	// Select Linear instance
+	var selectedInstance *config.LinearInstance
+	var selectedInstanceKey string
+
+	if len(cfg.Linear.Instances) == 1 {
+		// If only one instance, use it automatically
+		for key, instance := range cfg.Linear.Instances {
+			selectedInstance = instance
+			selectedInstanceKey = key
+			break
+		}
+	} else {
+		// Multiple instances, let user choose
+		instanceOptions := make([]string, 0, len(cfg.Linear.Instances))
+		instanceKeys := make([]string, 0, len(cfg.Linear.Instances))
+
+		for key := range cfg.Linear.Instances {
+			instanceKeys = append(instanceKeys, key)
+		}
+		sort.Strings(instanceKeys)
+
+		for _, key := range instanceKeys {
+			instance := cfg.Linear.Instances[key]
+			instanceOptions = append(instanceOptions, fmt.Sprintf("%s (%s)", instance.Name, key))
+		}
+
+		choice, err := ui.SelectFromList("Select Linear instance", instanceOptions)
+		if err != nil {
+			if err.Error() == "cancelled" {
+				return types.ErrNavigateBack
+			}
+			return err
+		}
+
+		selectedInstanceKey = instanceKeys[choice]
+		selectedInstance = cfg.Linear.Instances[selectedInstanceKey]
+	}
+
 	// Initialize Linear client
-	linearClient := NewLinearClient(cfg.Linear.APIKey)
+	linearClient := NewLinearClient(selectedInstance.APIKey)
 
 	// Fetch teams
 	ui.ShowInfo("Fetching Linear teams...")
@@ -419,6 +355,7 @@ func (m *Module) createManualIssue(cfg *config.Config) error {
 	fmt.Println(lipgloss.NewStyle().Bold(true).Render("Issue Summary:"))
 	fmt.Println(separator)
 
+	fmt.Printf("Linear Instance: %s\n", selectedInstance.Name)
 	fmt.Printf("Type: %s\n", issueType)
 	fmt.Printf("Title: %s\n", title)
 	fmt.Printf("Team: %s\n", selectedTeam.Name)
@@ -476,328 +413,128 @@ func (m *Module) createManualIssue(cfg *config.Config) error {
 	return nil
 }
 
-// configureProjects handles project configuration
-func (m *Module) configureProjects(cfg *config.Config) error {
+// syncBugs handles the bug syncing process
+func (m *Module) syncBugs(cfg *config.Config) error {
+	// Check if we have any connections
+	if len(cfg.BugManager.Connections) == 0 {
+		ui.ShowError("No Sentry-Linear connections configured. Please add a connection first.")
+		return nil
+	}
+
+	// Select connection
+	var selectedConnection *config.BugManagerConnection
+
+	if len(cfg.BugManager.Connections) == 1 {
+		// If only one connection, use it automatically
+		selectedConnection = &cfg.BugManager.Connections[0]
+	} else {
+		// Multiple connections, let user choose
+		connectionOptions := make([]string, len(cfg.BugManager.Connections))
+
+		for i, conn := range cfg.BugManager.Connections {
+			linearName := "Unknown"
+			sentryName := "Unknown"
+
+			if linear, ok := cfg.Linear.Instances[conn.LinearInstance]; ok {
+				linearName = linear.Name
+			}
+			if sentry, ok := cfg.Sentry.Instances[conn.SentryInstance]; ok {
+				sentryName = sentry.Name
+			}
+
+			connectionOptions[i] = fmt.Sprintf("%s: %s → %s (%d mappings)",
+				conn.Name, sentryName, linearName, len(conn.ProjectMappings))
+		}
+
+		choice, err := ui.SelectFromList("Select connection to sync", connectionOptions)
+		if err != nil {
+			if err.Error() == "cancelled" {
+				return types.ErrNavigateBack
+			}
+			return err
+		}
+
+		selectedConnection = &cfg.BugManager.Connections[choice]
+	}
+
+	// Check if connection has project mappings
+	if len(selectedConnection.ProjectMappings) == 0 {
+		ui.ShowError("Selected connection has no project mappings. Please configure project mappings first.")
+		return nil
+	}
+
+	// Get instances
+	sentryInstance := cfg.Sentry.Instances[selectedConnection.SentryInstance]
+	linearInstance := cfg.Linear.Instances[selectedConnection.LinearInstance]
+
+	if sentryInstance == nil || linearInstance == nil {
+		ui.ShowError("Invalid instance configuration in connection.")
+		return nil
+	}
+
+	// Initialize clients
+	sentryClient := NewSentryClient(sentryInstance.APIKey, sentryInstance.BaseURL)
+	linearClient := NewLinearClient(linearInstance.APIKey)
+
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("205")).
 		MarginBottom(1)
 
-	fmt.Println(titleStyle.Render("Configure Project Mappings"))
+	fmt.Println(titleStyle.Render(fmt.Sprintf("Sync Bugs: %s", selectedConnection.Name)))
 
-	// Initialize clients
-	sentryClient := NewSentryClient(cfg.Sentry.APIKey, cfg.Sentry.BaseURL)
-	linearClient := NewLinearClient(cfg.Linear.APIKey)
+	// Select project mapping if multiple exist
+	var selectedMapping *config.BugManagerProjectMapping
 
-	// Fetch Sentry projects
-	ui.ShowInfo("Fetching Sentry projects...")
-	sentryProjects, err := sentryClient.GetProjects()
-	if err != nil {
-		return fmt.Errorf("failed to fetch Sentry projects: %w", err)
-	}
-
-	if len(sentryProjects) == 0 {
-		ui.ShowWarning("No Sentry projects found. Please create projects in Sentry first.")
-		return types.ErrNavigateBack
-	}
-
-	// Fetch Linear teams
-	ui.ShowInfo("Fetching Linear teams...")
-	linearTeams, err := linearClient.GetTeams()
-	if err != nil {
-		return fmt.Errorf("failed to fetch Linear teams: %w", err)
-	}
-
-	if len(linearTeams) == 0 {
-		ui.ShowWarning("No Linear teams found. Please create teams in Linear first.")
-		return types.ErrNavigateBack
-	}
-
-	// Show current mappings
-	if len(cfg.Sentry.Projects) > 0 {
-		fmt.Println("\nCurrent Project Mappings:")
-		for name, project := range cfg.Sentry.Projects {
-			linearProj, exists := cfg.Linear.Projects[project.LinearProjectID]
-			if exists {
-				fmt.Printf("  • %s (%s/%s) → %s\n",
-					name, project.OrganizationSlug, project.ProjectSlug, linearProj.ProjectName)
-			} else {
-				fmt.Printf("  • %s (%s/%s) → [Not Configured]\n",
-					name, project.OrganizationSlug, project.ProjectSlug)
-			}
-		}
-		fmt.Println()
-	}
-
-	// Menu for project configuration
-	for {
-		options := []string{
-			"Add New Project Mapping",
-			"Remove Project Mapping",
-			"Back",
+	if len(selectedConnection.ProjectMappings) == 1 {
+		selectedMapping = &selectedConnection.ProjectMappings[0]
+	} else {
+		mappingOptions := make([]string, len(selectedConnection.ProjectMappings))
+		for i, mapping := range selectedConnection.ProjectMappings {
+			mappingOptions[i] = fmt.Sprintf("%s/%s → %s",
+				mapping.SentryOrganization, mapping.SentryProject, mapping.LinearProjectName)
 		}
 
-		choice, err := ui.SelectFromList("Project Configuration", options)
+		choice, err := ui.SelectFromList("Select project to sync from", mappingOptions)
 		if err != nil {
+			if err.Error() == "cancelled" {
+				return types.ErrNavigateBack
+			}
 			return err
 		}
 
-		switch choice {
-		case 0: // Add new mapping
-			if err := m.addProjectMapping(cfg, sentryProjects, linearTeams, sentryClient, linearClient); err != nil {
-				if err == types.ErrNavigateBack {
-					continue
-				}
-				return err
-			}
-		case 1: // Remove mapping
-			if err := m.removeProjectMapping(cfg); err != nil {
-				if err == types.ErrNavigateBack {
-					continue
-				}
-				return err
-			}
-		case 2: // Back
-			return types.ErrNavigateBack
-		}
+		selectedMapping = &selectedConnection.ProjectMappings[choice]
 	}
-}
-
-// addProjectMapping adds a new project mapping
-func (m *Module) addProjectMapping(cfg *config.Config, sentryProjects []SentryProject, linearTeams []LinearTeam, sentryClient *SentryClient, linearClient *LinearClient) error {
-	// Select Sentry project
-	sentryOptions := make([]string, len(sentryProjects))
-	for i, proj := range sentryProjects {
-		orgSlug := proj.OrganizationSlug
-		if orgSlug == "" && proj.Organization.Slug != "" {
-			orgSlug = proj.Organization.Slug
-		}
-		sentryOptions[i] = fmt.Sprintf("%s (%s/%s)", proj.Name, orgSlug, proj.Slug)
-	}
-
-	sentryChoice, err := ui.SelectFromList("Select Sentry Project", sentryOptions)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	selectedSentryProject := sentryProjects[sentryChoice]
-
-	// Select Linear team
-	teamOptions := make([]string, len(linearTeams))
-	for i, team := range linearTeams {
-		teamOptions[i] = fmt.Sprintf("%s (%s)", team.Name, team.Key)
-	}
-
-	teamChoice, err := ui.SelectFromList("Select Linear Team", teamOptions)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	selectedTeam := linearTeams[teamChoice]
-
-	// Fetch Linear projects for the selected team
-	ui.ShowInfo("Fetching Linear projects...")
-	linearProjects, err := linearClient.GetProjects(selectedTeam.ID)
-	if err != nil {
-		return fmt.Errorf("failed to fetch Linear projects: %w", err)
-	}
-
-	if len(linearProjects) == 0 {
-		ui.ShowWarning("No projects found in the selected team. Please create projects in Linear first.")
-		return types.ErrNavigateBack
-	}
-
-	// Select Linear project
-	projectOptions := make([]string, len(linearProjects))
-	for i, proj := range linearProjects {
-		projectOptions[i] = proj.Name
-	}
-
-	projectChoice, err := ui.SelectFromList("Select Linear Project", projectOptions)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	selectedLinearProject := linearProjects[projectChoice]
-
-	// Get mapping name
-	mappingName, err := ui.GetInput(
-		"Enter a name for this mapping",
-		fmt.Sprintf("%s-%s", selectedSentryProject.Slug, selectedLinearProject.Name),
-		false,
-		nil,
-	)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	// Configure default labels
-	labelsInput, err := ui.GetInput(
-		"Enter default labels (comma-separated)",
-		"bug,sentry",
-		false,
-		nil,
-	)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	labels := []string{}
-	if labelsInput != "" {
-		for _, label := range strings.Split(labelsInput, ",") {
-			labels = append(labels, strings.TrimSpace(label))
-		}
-	}
-
-	// Save the mapping
-	if cfg.Sentry.Projects == nil {
-		cfg.Sentry.Projects = make(map[string]config.SentryProject)
-	}
-	if cfg.Linear.Projects == nil {
-		cfg.Linear.Projects = make(map[string]config.LinearProject)
-	}
-
-	cfg.Sentry.Projects[mappingName] = config.SentryProject{
-		OrganizationSlug: selectedSentryProject.OrganizationSlug,
-		ProjectSlug:      selectedSentryProject.Slug,
-		LinearProjectID:  selectedLinearProject.ID,
-	}
-
-	cfg.Linear.Projects[selectedLinearProject.ID] = config.LinearProject{
-		TeamID:      selectedTeam.ID,
-		ProjectID:   selectedLinearProject.ID,
-		ProjectName: selectedLinearProject.Name,
-		Labels:      labels,
-	}
-
-	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
-	}
-
-	ui.ShowSuccess(fmt.Sprintf("Project mapping '%s' created successfully!", mappingName))
-	return nil
-}
-
-// removeProjectMapping removes an existing project mapping
-func (m *Module) removeProjectMapping(cfg *config.Config) error {
-	if len(cfg.Sentry.Projects) == 0 {
-		ui.ShowWarning("No project mappings configured.")
-		return types.ErrNavigateBack
-	}
-
-	// Build list of mappings
-	var mappingNames []string
-	for name := range cfg.Sentry.Projects {
-		mappingNames = append(mappingNames, name)
-	}
-
-	// Select mapping to remove
-	choice, err := ui.SelectFromList("Select mapping to remove", mappingNames)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	selectedMapping := mappingNames[choice]
-
-	// Confirm deletion
-	if !ui.GetConfirmation(fmt.Sprintf("Are you sure you want to remove the mapping '%s'?", selectedMapping)) {
-		return types.ErrNavigateBack
-	}
-
-	// Remove the mapping
-	project := cfg.Sentry.Projects[selectedMapping]
-	delete(cfg.Sentry.Projects, selectedMapping)
-	delete(cfg.Linear.Projects, project.LinearProjectID)
-
-	if err := config.Save(cfg); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
-	}
-
-	ui.ShowSuccess(fmt.Sprintf("Project mapping '%s' removed successfully!", selectedMapping))
-	return nil
-}
-
-// syncBugs handles the bug syncing process
-func (m *Module) syncBugs(cfg *config.Config) error {
-	if len(cfg.Sentry.Projects) == 0 {
-		ui.ShowWarning("No project mappings configured. Please configure projects first.")
-		return types.ErrNavigateBack
-	}
-
-	// Select project mapping
-	var mappingNames []string
-	for name := range cfg.Sentry.Projects {
-		mappingNames = append(mappingNames, name)
-	}
-
-	mappingChoice, err := ui.SelectFromList("Select project to sync bugs from", mappingNames)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	selectedMapping := mappingNames[mappingChoice]
-	sentryProject := cfg.Sentry.Projects[selectedMapping]
-	linearProject := cfg.Linear.Projects[sentryProject.LinearProjectID]
-
-	// Validate Sentry project configuration
-	if sentryProject.OrganizationSlug == "" {
-		ui.ShowError("Sentry organization slug is missing in the configuration!")
-		ui.ShowInfo("Please reconfigure the project mapping with the correct organization slug.")
-		fmt.Println("\nPress Enter to continue...")
-		fmt.Scanln()
-		return types.ErrNavigateBack
-	}
-
-	// Initialize clients
-	sentryClient := NewSentryClient(cfg.Sentry.APIKey, cfg.Sentry.BaseURL)
-	linearClient := NewLinearClient(cfg.Linear.APIKey)
 
 	// Fetch unresolved issues from Sentry
-	ui.ShowInfo("Fetching unresolved bugs from Sentry...")
-	issues, err := sentryClient.GetUnresolvedIssues(sentryProject.OrganizationSlug, sentryProject.ProjectSlug, 5)
+	ui.ShowInfo(fmt.Sprintf("Fetching unresolved issues from %s/%s...",
+		selectedMapping.SentryOrganization, selectedMapping.SentryProject))
+
+	issues, err := sentryClient.GetUnresolvedIssues(
+		selectedMapping.SentryOrganization,
+		selectedMapping.SentryProject,
+		20, // Fetch up to 20 issues
+	)
 	if err != nil {
-		ui.ShowError(fmt.Sprintf("Failed to fetch Sentry issues: %v", err))
-		ui.ShowInfo("Please check your API key, project configuration, and network connection.")
-		fmt.Println("\nPress Enter to continue...")
-		fmt.Scanln()
-		return types.ErrNavigateBack
+		ui.ShowError(fmt.Sprintf("Failed to fetch issues: %v", err))
+		return nil
 	}
 
 	if len(issues) == 0 {
-		ui.ShowSuccess("No unresolved bugs found in Sentry!")
-		return types.ErrNavigateBack
+		ui.ShowSuccess("No unresolved issues found in Sentry!")
+		return nil
 	}
 
-	// Display issues
-	fmt.Println("\nUnresolved Bugs:")
+	// Display issues for selection
+	fmt.Println(fmt.Sprintf("\nFound %d unresolved issues:", len(issues)))
 	issueOptions := make([]string, len(issues))
 	for i, issue := range issues {
 		issueOptions[i] = fmt.Sprintf("[%s] %s (Level: %s, Count: %s, Users: %d)",
 			issue.ShortID, issue.Title, issue.Level, issue.Count, issue.UserCount)
 	}
 
-	issueChoice, err := ui.SelectFromList("Select bug to sync to Linear", issueOptions)
+	// Select issue to sync
+	issueChoice, err := ui.SelectFromList("Select issue to sync to Linear", issueOptions)
 	if err != nil {
 		if err.Error() == "cancelled" {
 			return types.ErrNavigateBack
@@ -807,20 +544,27 @@ func (m *Module) syncBugs(cfg *config.Config) error {
 
 	selectedIssue := issues[issueChoice]
 
-	// Fetch latest event for stack trace information
-	ui.ShowInfo("Fetching detailed error information...")
-	var event *SentryEvent
-	event, err = sentryClient.GetLatestEvent(selectedIssue.ID)
+	// Get issue details
+	ui.ShowInfo("Fetching issue details...")
+	issueDetails, err := sentryClient.GetIssueDetails(selectedIssue.ID)
 	if err != nil {
-		ui.ShowWarning(fmt.Sprintf("Could not fetch detailed event data: %v", err))
+		ui.ShowError(fmt.Sprintf("Failed to get issue details: %v", err))
+		return nil
+	}
+
+	// Get latest event for stack trace
+	ui.ShowInfo("Fetching error event details...")
+	event, err := sentryClient.GetLatestEvent(selectedIssue.ID)
+	if err != nil {
+		ui.ShowWarning(fmt.Sprintf("Could not fetch event details: %v", err))
 		// Continue without event data
 		event = nil
 	}
 
-	// Prepare bug details for Linear
-	bugDetails := m.prepareBugDetails(selectedIssue, event)
+	// Prepare bug details
+	bugDetails := m.prepareBugDetails(*issueDetails, event)
 
-	// Show bug details and confirm
+	// Show bug preview
 	separator := strings.Repeat("─", 60)
 	fmt.Println("\n" + separator)
 	fmt.Println(lipgloss.NewStyle().Bold(true).Render("Bug Details to be Created in Linear:"))
@@ -828,30 +572,35 @@ func (m *Module) syncBugs(cfg *config.Config) error {
 
 	fmt.Printf("Title: %s\n", bugDetails.Title)
 	fmt.Printf("Priority: %s\n", m.getPriorityName(bugDetails.Priority))
-	fmt.Printf("Labels: %s\n", strings.Join(append(linearProject.Labels, m.getSentryLabels(selectedIssue)...), ", "))
+	fmt.Printf("Target: %s\n", selectedMapping.LinearProjectName)
+	fmt.Printf("Labels: %s\n", strings.Join(append(selectedMapping.DefaultLabels, m.getSentryLabels(*issueDetails)...), ", "))
 	fmt.Println("\nDescription Preview:")
-	fmt.Println(bugDetails.Description[:min(500, len(bugDetails.Description))] + "...")
+	// Show first 500 chars of description
+	descPreview := bugDetails.Description
+	if len(descPreview) > 500 {
+		descPreview = descPreview[:500] + "..."
+	}
+	fmt.Println(descPreview)
 
 	fmt.Println(separator)
 
-	if !ui.GetConfirmation("Create this bug in Linear?") {
+	if !ui.GetConfirmation("Create this issue in Linear?") {
 		return types.ErrNavigateBack
 	}
 
 	// Fetch workflow states
 	ui.ShowInfo("Fetching workflow states...")
-	states, err := linearClient.GetWorkflowStates(linearProject.TeamID)
+	states, err := linearClient.GetWorkflowStates(selectedMapping.LinearTeamID)
 	if err != nil {
 		ui.ShowWarning(fmt.Sprintf("Could not fetch workflow states: %v", err))
 		states = []LinearWorkflowState{}
 	}
 
-	// Let user select desired state
+	// Select initial state
 	var selectedStateID string
 	if len(states) > 0 {
 		stateOptions := make([]string, len(states))
 		for i, state := range states {
-			// Show state type to help user choose
 			stateType := ""
 			switch state.Type {
 			case "triage":
@@ -875,7 +624,7 @@ func (m *Module) syncBugs(cfg *config.Config) error {
 		if err != nil {
 			if err.Error() == "cancelled" {
 				// Use default state if user cancels
-				ui.ShowInfo("Using default state (Triage)")
+				ui.ShowInfo("Using default state")
 			} else {
 				return err
 			}
@@ -884,13 +633,17 @@ func (m *Module) syncBugs(cfg *config.Config) error {
 		}
 	}
 
-	// Create labels in Linear
+	// Create labels
 	ui.ShowInfo("Creating labels in Linear...")
 	var labelIDs []string
-	allLabels := append(linearProject.Labels, m.getSentryLabels(selectedIssue)...)
+	allLabels := append(selectedMapping.DefaultLabels, m.getSentryLabels(*issueDetails)...)
 
 	for _, label := range allLabels {
-		labelID, err := linearClient.GetOrCreateLabel(linearProject.TeamID, label, m.getLabelColor(label))
+		labelID, err := linearClient.GetOrCreateLabel(
+			selectedMapping.LinearTeamID,
+			label,
+			m.getLabelColor(label),
+		)
 		if err != nil {
 			ui.ShowWarning(fmt.Sprintf("Failed to create label '%s': %v", label, err))
 			continue
@@ -898,11 +651,11 @@ func (m *Module) syncBugs(cfg *config.Config) error {
 		labelIDs = append(labelIDs, labelID)
 	}
 
-	// Create issue in Linear
+	// Create Linear issue
 	ui.ShowInfo("Creating issue in Linear...")
 	linearIssue, err := linearClient.CreateIssue(
-		linearProject.TeamID,
-		linearProject.ProjectID,
+		selectedMapping.LinearTeamID,
+		selectedMapping.LinearProjectID,
 		bugDetails.Title,
 		bugDetails.Description,
 		labelIDs,
@@ -910,13 +663,27 @@ func (m *Module) syncBugs(cfg *config.Config) error {
 		selectedStateID,
 	)
 	if err != nil {
-		ui.ShowError(fmt.Sprintf("Failed to create issue in Linear: %v", err))
-		fmt.Println("\nPress Enter to continue...")
-		fmt.Scanln()
-		return types.ErrNavigateBack
+		ui.ShowError(fmt.Sprintf("Failed to create Linear issue: %v", err))
+		return nil
 	}
 
-	ui.ShowSuccess(fmt.Sprintf("Bug successfully created in Linear!\nURL: %s", linearIssue.URL))
+	ui.ShowSuccess(fmt.Sprintf("Issue created successfully!\nURL: %s", linearIssue.URL))
+
+	// Ask if user wants to resolve in Sentry
+	if ui.GetConfirmation("\nMark this issue as resolved in Sentry?") {
+		ui.ShowInfo("Resolving issue in Sentry...")
+		if err := sentryClient.ResolveIssue(selectedIssue.ID); err != nil {
+			ui.ShowError(fmt.Sprintf("Failed to resolve issue in Sentry: %v", err))
+		} else {
+			ui.ShowSuccess("Issue marked as resolved in Sentry")
+		}
+	}
+
+	// Ask if user wants to sync another issue
+	if ui.GetConfirmation("\nSync another issue from the same project?") {
+		return m.syncBugs(cfg)
+	}
+
 	return nil
 }
 
@@ -1133,208 +900,4 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// resolveIssues handles resolving Sentry issues
-func (m *Module) resolveIssues(cfg *config.Config) error {
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		MarginBottom(1)
-
-	fmt.Println(titleStyle.Render("Resolve Sentry Issues"))
-
-	// Check if API is configured
-	if cfg.Sentry.APIKey == "" {
-		ui.ShowWarning("Sentry API key not configured. Please configure APIs first.")
-		return types.ErrNavigateBack
-	}
-
-	if len(cfg.Sentry.Projects) == 0 {
-		ui.ShowWarning("No project mappings configured. Please configure projects first.")
-		return types.ErrNavigateBack
-	}
-
-	// Select project
-	var mappingNames []string
-	for name := range cfg.Sentry.Projects {
-		mappingNames = append(mappingNames, name)
-	}
-
-	mappingChoice, err := ui.SelectFromList("Select project to view issues from", mappingNames)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	selectedMapping := mappingNames[mappingChoice]
-	sentryProject := cfg.Sentry.Projects[selectedMapping]
-
-	// Validate Sentry project configuration
-	if sentryProject.OrganizationSlug == "" {
-		ui.ShowError("Sentry organization slug is missing in the configuration!")
-		return types.ErrNavigateBack
-	}
-
-	// Initialize Sentry client
-	sentryClient := NewSentryClient(cfg.Sentry.APIKey, cfg.Sentry.BaseURL)
-
-	// Fetch unresolved issues
-	ui.ShowInfo("Fetching unresolved issues from Sentry...")
-	issues, err := sentryClient.GetUnresolvedIssues(sentryProject.OrganizationSlug, sentryProject.ProjectSlug, 20)
-	if err != nil {
-		ui.ShowError(fmt.Sprintf("Failed to fetch Sentry issues: %v", err))
-		return types.ErrNavigateBack
-	}
-
-	if len(issues) == 0 {
-		ui.ShowSuccess("No unresolved issues found in Sentry!")
-		return types.ErrNavigateBack
-	}
-
-	// Display issues with multi-select option
-	fmt.Println("\nUnresolved Issues:")
-	issueOptions := make([]string, len(issues))
-	for i, issue := range issues {
-		issueOptions[i] = fmt.Sprintf("[%s] %s (Level: %s, Count: %s, Users: %d, Last seen: %s)",
-			issue.ShortID, issue.Title, issue.Level, issue.Count, issue.UserCount, issue.LastSeen)
-	}
-
-	// Add option to select multiple or single
-	fmt.Println("\nSelect resolution mode:")
-	modeOptions := []string{"Resolve Single Issue", "Resolve Multiple Issues", "Back"}
-	modeChoice, err := ui.SelectFromList("Resolution Mode", modeOptions)
-	if err != nil {
-		if err.Error() == "cancelled" {
-			return types.ErrNavigateBack
-		}
-		return err
-	}
-
-	switch modeChoice {
-	case 0: // Single issue
-		issueChoice, err := ui.SelectFromList("Select issue to resolve", issueOptions)
-		if err != nil {
-			if err.Error() == "cancelled" {
-				return types.ErrNavigateBack
-			}
-			return err
-		}
-
-		selectedIssue := issues[issueChoice]
-
-		// Show issue details
-		separator := strings.Repeat("─", 60)
-		fmt.Println("\n" + separator)
-		fmt.Println(lipgloss.NewStyle().Bold(true).Render("Issue Details:"))
-		fmt.Println(separator)
-		fmt.Printf("ID: %s\n", selectedIssue.ShortID)
-		fmt.Printf("Title: %s\n", selectedIssue.Title)
-		fmt.Printf("Level: %s\n", selectedIssue.Level)
-		fmt.Printf("Count: %s\n", selectedIssue.Count)
-		fmt.Printf("Users Affected: %d\n", selectedIssue.UserCount)
-		fmt.Printf("First Seen: %s\n", selectedIssue.FirstSeen)
-		fmt.Printf("Last Seen: %s\n", selectedIssue.LastSeen)
-		fmt.Printf("Permalink: %s\n", selectedIssue.Permalink)
-		fmt.Println(separator)
-
-		if !ui.GetConfirmation("Are you sure you want to mark this issue as resolved?") {
-			return types.ErrNavigateBack
-		}
-
-		ui.ShowInfo("Resolving issue...")
-		if err := sentryClient.ResolveIssue(selectedIssue.ID); err != nil {
-			ui.ShowError(fmt.Sprintf("Failed to resolve issue: %v", err))
-			return nil
-		}
-
-		ui.ShowSuccess(fmt.Sprintf("Issue %s resolved successfully!", selectedIssue.ShortID))
-
-	case 1: // Multiple issues
-		fmt.Println("\nSelect issues to resolve (select one at a time, choose 'Done' when finished):")
-
-		selected := make(map[int]bool)
-
-		for {
-			// Build options list with selection indicators
-			currentOptions := []string{"Done Selecting"}
-			for i := range issues {
-				prefix := "  "
-				if selected[i] {
-					prefix = "✓ "
-				}
-				currentOptions = append(currentOptions, fmt.Sprintf("%s%s", prefix, issueOptions[i]))
-			}
-
-			fmt.Printf("\n%d issue(s) selected\n", len(selected))
-
-			choice, err := ui.SelectFromList("Select issues to resolve", currentOptions)
-			if err != nil {
-				if err.Error() == "cancelled" {
-					return types.ErrNavigateBack
-				}
-				return err
-			}
-
-			if choice == 0 { // Done selecting
-				if len(selected) == 0 {
-					ui.ShowWarning("No issues selected")
-					continue
-				}
-				break
-			}
-
-			// Toggle selection
-			issueIndex := choice - 1
-			if selected[issueIndex] {
-				delete(selected, issueIndex)
-				ui.ShowInfo(fmt.Sprintf("Deselected: %s", issues[issueIndex].ShortID))
-			} else {
-				selected[issueIndex] = true
-				ui.ShowSuccess(fmt.Sprintf("Selected: %s", issues[issueIndex].ShortID))
-			}
-		}
-
-		// Show summary
-		separator := strings.Repeat("─", 60)
-		fmt.Println("\n" + separator)
-		fmt.Printf("Selected %d issue(s) to resolve:\n", len(selected))
-		fmt.Println(separator)
-		for idx := range selected {
-			fmt.Printf("• %s\n", issueOptions[idx])
-		}
-		fmt.Println(separator)
-
-		if !ui.GetConfirmation(fmt.Sprintf("Are you sure you want to mark %d issue(s) as resolved?", len(selected))) {
-			return types.ErrNavigateBack
-		}
-
-		// Resolve selected issues
-		resolved := 0
-		failed := 0
-		for idx := range selected {
-			ui.ShowInfo(fmt.Sprintf("Resolving issue %s...", issues[idx].ShortID))
-			if err := sentryClient.ResolveIssue(issues[idx].ID); err != nil {
-				ui.ShowWarning(fmt.Sprintf("Failed to resolve %s: %v", issues[idx].ShortID, err))
-				failed++
-			} else {
-				resolved++
-			}
-		}
-
-		if failed > 0 {
-			ui.ShowWarning(fmt.Sprintf("Resolved %d issue(s), %d failed", resolved, failed))
-		} else {
-			ui.ShowSuccess(fmt.Sprintf("Successfully resolved %d issue(s)!", resolved))
-		}
-
-	case 2: // Back
-		return types.ErrNavigateBack
-	}
-
-	fmt.Println("\nPress Enter to continue...")
-	fmt.Scanln()
-	return nil
 }
