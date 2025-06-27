@@ -44,12 +44,13 @@ func (m *Module) Execute(cfg *config.Config) error {
 			"Sentry Configuration",
 			"Linear Configuration",
 			"Global Settings",
+			"View Current Configuration",
 			"View Configuration Path",
 			"Back to main menu",
 		}
 
 		choice, err := ui.SelectFromList("Select configuration to manage:", options)
-		if err != nil || choice == 8 {
+		if err != nil || choice == 9 {
 			return types.ErrNavigateBack
 		}
 
@@ -83,6 +84,8 @@ func (m *Module) Execute(cfg *config.Config) error {
 				ui.ShowError(fmt.Sprintf("Failed to configure global settings: %v", err))
 			}
 		case 7:
+			m.viewCurrentConfiguration(cfg)
+		case 8:
 			m.showConfigPath()
 		}
 
@@ -464,5 +467,138 @@ func (m *Module) showConfigPath() {
 
 	ui.ShowInfo("You can manually edit this file if needed")
 	ui.ShowInfo("Press Enter to continue...")
+	fmt.Scanln()
+}
+
+// viewCurrentConfiguration displays the current configuration in a formatted way
+func (m *Module) viewCurrentConfiguration(cfg *config.Config) {
+	fmt.Print("\033[H\033[2J") // Clear screen
+
+	title := ui.GetGradientTitle("📋 Current Configuration")
+	fmt.Println(title)
+	fmt.Println()
+
+	// Helper function to mask sensitive data
+	maskSensitive := func(value string, showChars int) string {
+		if value == "" {
+			return "(not configured)"
+		}
+		if len(value) <= showChars {
+			return strings.Repeat("*", len(value))
+		}
+		return value[:showChars] + strings.Repeat("*", len(value)-showChars)
+	}
+
+	// Helper function to display a section
+	displaySection := func(title string, items [][]string) {
+		// Create a simple box header
+		fmt.Println(strings.Repeat("─", 60))
+		fmt.Printf("  %s\n", title)
+		fmt.Println(strings.Repeat("─", 60))
+
+		for _, item := range items {
+			if len(item) == 2 {
+				fmt.Printf("  %-25s : %s\n", item[0], item[1])
+			}
+		}
+		fmt.Println()
+	}
+
+	// GitHub Configuration
+	githubItems := [][]string{
+		{"Username", cfg.GitHub.Username},
+		{"Email", cfg.GitHub.Email},
+		{"Token", maskSensitive(cfg.GitHub.Token, 10)},
+	}
+	displaySection("🐙 GitHub Configuration", githubItems)
+
+	// SSH Configuration
+	sshItems := [][]string{
+		{"Signing Key Path", cfg.SSH.SigningKeyPath},
+		{"Key Comment", cfg.SSH.KeyComment},
+	}
+	displaySection("🔐 SSH Configuration", sshItems)
+
+	// GPG Configuration
+	gpgItems := [][]string{
+		{"Email", cfg.GPG.Email},
+		{"Key ID", cfg.GPG.KeyID},
+	}
+	displaySection("🔑 GPG Configuration", gpgItems)
+
+	// Cursor AI Configuration
+	cursorPlan := cfg.Cursor.CurrentPlan
+	if cursorPlan == "" {
+		cursorPlan = "(not configured)"
+	}
+	cursorItems := [][]string{
+		{"API Key", maskSensitive(cfg.Cursor.APIKey, 10)},
+		{"API Endpoint", cfg.Cursor.APIEndpoint},
+		{"Current Plan", cursorPlan},
+	}
+	displaySection("🤖 Cursor AI Configuration", cursorItems)
+
+	// Sentry Configuration
+	sentryItems := [][]string{
+		{"Legacy API Key", maskSensitive(cfg.Sentry.APIKey, 15)},
+		{"Legacy Base URL", cfg.Sentry.BaseURL},
+		{"Instances Configured", fmt.Sprintf("%d", len(cfg.Sentry.Instances))},
+	}
+	// Add instance details
+	for key, instance := range cfg.Sentry.Instances {
+		sentryItems = append(sentryItems, []string{
+			fmt.Sprintf("  Instance '%s'", key),
+			fmt.Sprintf("%s (API: %s)", instance.Name, maskSensitive(instance.APIKey, 10)),
+		})
+	}
+	displaySection("🐛 Sentry Configuration", sentryItems)
+
+	// Linear Configuration
+	linearItems := [][]string{
+		{"Legacy API Key", maskSensitive(cfg.Linear.APIKey, 15)},
+		{"Instances Configured", fmt.Sprintf("%d", len(cfg.Linear.Instances))},
+	}
+	// Add instance details
+	for key, instance := range cfg.Linear.Instances {
+		linearItems = append(linearItems, []string{
+			fmt.Sprintf("  Instance '%s'", key),
+			fmt.Sprintf("%s (API: %s)", instance.Name, maskSensitive(instance.APIKey, 10)),
+		})
+	}
+	displaySection("📋 Linear Configuration", linearItems)
+
+	// Bug Manager Connections
+	if len(cfg.BugManager.Connections) > 0 {
+		connItems := [][]string{
+			{"Total Connections", fmt.Sprintf("%d", len(cfg.BugManager.Connections))},
+		}
+		for _, conn := range cfg.BugManager.Connections {
+			connItems = append(connItems, []string{
+				fmt.Sprintf("  %s", conn.Name),
+				fmt.Sprintf("%s → %s (%d mappings)", conn.SentryInstance, conn.LinearInstance, len(conn.ProjectMappings)),
+			})
+		}
+		displaySection("🔗 Bug Manager Connections", connItems)
+	}
+
+	// Flutter Configuration
+	flutterItems := [][]string{
+		{"Android SDK Path", cfg.Flutter.AndroidSDKPath},
+		{"Keystore Directory", cfg.Flutter.KeystoreDir},
+		{"Backup Directory", cfg.Flutter.BackupDir},
+		{"Default Build Mode", cfg.Flutter.DefaultBuildMode},
+		{"Projects Configured", fmt.Sprintf("%d", len(cfg.Flutter.Projects))},
+	}
+	displaySection("📱 Flutter Configuration", flutterItems)
+
+	// Global Settings
+	globalItems := [][]string{
+		{"Preferred Signing Method", cfg.Settings.PreferredSigningMethod},
+	}
+	displaySection("⚙️  Global Settings", globalItems)
+
+	// Footer
+	fmt.Println(strings.Repeat("─", 60))
+	ui.ShowInfo("Press Enter to return to menu...")
 	fmt.Scanln()
 }
